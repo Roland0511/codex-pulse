@@ -1,0 +1,162 @@
+<div id="pulse-motion">
+<style>
+#pulse-motion .scene:not(.micro) { --join:8px; }
+#pulse-motion .scene { --surface:light-dark(#fcfdfd,#1b2025); --ink:light-dark(#19242b,#edf5f5); --muted:light-dark(#63727a,#a4b4bb); --edge:light-dark(#dbe4e7,#38434a); --signal:light-dark(#007b71,#6ee4ce); --track:light-dark(#e3eeeb,#2d3e3c); color:var(--ink); font:13px -apple-system,BlinkMacSystemFont,sans-serif; }
+#pulse-motion .stage { height:340px; position:relative; touch-action:pan-y; }
+#pulse-motion .rail { position:absolute; top:48px; bottom:36px; width:3px; background:var(--signal); opacity:0; border-radius:3px; transition:opacity 160ms; }
+#pulse-motion .rail.left { left:0; } #pulse-motion .rail.right { right:0; }
+#pulse-motion .rail.on { opacity:.5; }
+#pulse-motion .floater { position:absolute; top:100px; left:calc(50% - 90px); width:180px; height:36px; border-radius:20px; background:var(--surface); border:1px solid var(--edge); box-shadow:0 8px 24px light-dark(#19354020,#00000045); overflow:hidden; transition:width var(--speed,200ms) cubic-bezier(.2,.85,.25,1),height var(--speed,200ms) cubic-bezier(.2,.85,.25,1),left var(--speed,200ms),top var(--speed,200ms),border-radius var(--speed,200ms); box-sizing:border-box; }
+#pulse-motion .floater.dragging { transition:none; cursor:grabbing; }
+#pulse-motion .head { display:flex; align-items:center; gap:9px; width:100%; height:35px; border:0; padding:0 14px; background:transparent; color:var(--ink); font:inherit; white-space:nowrap; touch-action:none; cursor:grab; }
+#pulse-motion .dot { width:6px; height:6px; flex-shrink:0; background:var(--signal); border-radius:50%; }
+#pulse-motion .pct { font-size:14px; font-weight:600; font-variant-numeric:tabular-nums; }
+#pulse-motion .time { font-size:11px; color:var(--muted); margin-left:auto; }
+#pulse-motion .line { position:absolute; top:33px; left:14px; right:14px; height:2px; background:var(--track); overflow:hidden; }
+#pulse-motion .fill { width:97%; height:100%; background:var(--signal); transition:width 360ms ease; }
+#pulse-motion .details { padding:16px; border-top:1px solid var(--edge); visibility:hidden; opacity:0; transition:opacity 180ms; }
+#pulse-motion .details .row { display:flex; justify-content:space-between; margin:0 0 14px; gap:10px; }
+#pulse-motion .details .foot { font-size:11px; color:var(--muted); margin-top:20px; }
+#pulse-motion .floater.open { width:264px; height:188px; border-radius:18px; }
+#pulse-motion .floater.open .details { visibility:visible; opacity:1; }
+#pulse-motion .floater.open .line { display:none; }
+#pulse-motion .floater.docked { width:54px; height:36px; border-radius:10px; }
+#pulse-motion .floater.docked .head { height:35px; padding:0 8px; justify-content:center; }
+#pulse-motion .floater.attached-left, #pulse-motion .floater.attached-right { transition-property:width,height,border-radius; }
+#pulse-motion .floater.docked .dot, #pulse-motion .floater.docked .time, #pulse-motion .floater.docked .line { display:none; }
+#pulse-motion .floater { background:transparent; border:0; box-shadow:none; overflow:visible; }
+#pulse-motion .contour { position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; filter:drop-shadow(0 3px 5px light-dark(#19354018,#00000035)); }
+#pulse-motion .contour path { fill:var(--surface); stroke:var(--edge); stroke-width:.65; }
+#pulse-motion .head, #pulse-motion .details { position:relative; }
+#pulse-motion .head { box-sizing:border-box; overflow:hidden; clip-path:inset(0 round 10px); }
+#pulse-motion .floater { container-type:inline-size; }
+@container (max-width:164px) { #pulse-motion .head .time { opacity:0; } }
+#pulse-motion .pct { flex-shrink:0; }
+#pulse-motion .time { flex-shrink:0; opacity:var(--text-reveal,0); }
+#pulse-motion .floater.narrow .head { padding:0 8px; justify-content:center; gap:0; }
+#pulse-motion .floater.narrow .head .dot, #pulse-motion .floater.narrow .head .time { display:none; }
+#pulse-motion .micro .floater.narrow .head::after { display:none; }
+#pulse-motion .floater.flash { animation:none; }
+#pulse-motion .floater.flash .contour { animation:none; }
+#pulse-motion .contour .recovery-edge { fill:none; stroke:var(--signal); stroke-width:1.8; opacity:0; }
+#pulse-motion .floater.flash .contour .recovery-edge { animation:pulse-return 520ms ease-out; }
+#pulse-motion .micro .floater:not(.open):not(.docked) { width:124px; }
+#pulse-motion .micro .time { display:none; }
+#pulse-motion .micro .head { justify-content:center; }
+#pulse-motion .micro .head::after { content:'周剩余'; color:var(--muted); font-size:11px; }
+#pulse-motion .micro .docked .head::after { display:none; }
+#pulse-motion .micro .open .head { justify-content:flex-start; }
+#pulse-motion .demo { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; padding:0 8px 20px; }
+#pulse-motion .demo button { font:12px -apple-system,sans-serif; border:1px solid var(--edge); color:var(--muted); background:var(--surface); border-radius:9px; padding:7px 12px; }
+#pulse-motion .label { position:absolute; top:18px; left:18px; font-size:11px; color:var(--muted); letter-spacing:.06em; }
+@keyframes pulse-return { 0%,18% { opacity:1; stroke-width:1.8; } 100% { opacity:0; stroke-width:.65; } }
+@media(prefers-reduced-motion:reduce) { #pulse-motion * { transition:none!important; animation:none!important; } }
+</style>
+<div class="viz-carousel viz-dotted-background" aria-label="胶囊样式与交互动效" data-previous-label="上一款" data-next-label="下一款">
+<section class="scene" data-variant="细线胶囊" aria-label="细线胶囊">
+<div class="stage"><span class="label">180 × 36 · 演示数据</span><div class="rail left"></div><div class="rail right"></div>
+<div class="floater" aria-label="细线胶囊交互"><button type="button" class="head" aria-expanded="false" aria-label="周额度剩余 97%，点击展开，也可拖动"><span class="dot"></span><span class="pct">97%</span><span class="time">6 天后重置</span></button><div class="line"><div class="fill"></div></div><div class="details"><div class="row"><span>周额度剩余</span><strong class="amount">97%</strong></div><div class="row"><span>重置时间</span><span>10/14 11:29</span></div><div class="row"><span>可用重置</span><span>1 次</span></div><div class="foot">演示状态 · 未连接账户</div></div></div></div>
+<div class="demo"><button type="button" class="cursor-interaction" data-demo="low">演示低额度</button><button type="button" class="cursor-interaction" data-demo="reset">演示恢复</button><button type="button" class="cursor-interaction" data-demo="home">回到中央</button></div>
+</section>
+
+</div>
+<script>
+(() => {
+const root=document.getElementById('pulse-motion');
+root.querySelectorAll('.scene').forEach(scene=>{
+ const stage=scene.querySelector('.stage'), box=scene.querySelector('.floater'), head=scene.querySelector('.head');
+ const base=scene.classList.contains('micro')?124:180;
+ const shape=document.createElementNS('http://www.w3.org/2000/svg','svg');shape.classList.add('contour');shape.setAttribute('aria-hidden','true');shape.setAttribute('preserveAspectRatio','none');
+ const contour=document.createElementNS('http://www.w3.org/2000/svg','path');shape.appendChild(contour);box.prepend(shape);
+ const recoveryEdge=document.createElementNS('http://www.w3.org/2000/svg','path');recoveryEdge.classList.add('recovery-edge');shape.appendChild(recoveryEdge);
+ const settings={speed:200,join:8,outer:10,reach:32};
+ let blendLeft=0,blendRight=0;
+ function drawContour(){
+  const w=box.getBoundingClientRect().width,h=box.getBoundingClientRect().height;
+  if(!w||!h)return;
+  box.classList.toggle('narrow',w<100);
+  box.style.setProperty('--text-reveal',String(Math.max(0,Math.min(1,(w-164)/16))));
+  const r=settings.join,o=Math.min(settings.outer,h/2);
+  const yl=o-(o+r)*blendLeft, yr=o-(o+r)*blendRight;
+  const xl=o+(r-o)*blendLeft, xr=o+(r-o)*blendRight;
+  const d=`M 0 ${yl} Q 0 0 ${xl} 0 H ${w-xr} Q ${w} 0 ${w} ${yr} V ${h-yr} Q ${w} ${h} ${w-xr} ${h} H ${xl} Q 0 ${h} 0 ${h-yl} Z`;
+  contour.removeAttribute('transform');
+  shape.setAttribute('viewBox',`0 0 ${w} ${h}`);contour.setAttribute('d',d);
+  const glow=dock==='left'
+   ?`M 0 ${yl} Q 0 0 ${xl} 0 H ${w-xr} Q ${w} 0 ${w} ${yr} V ${h-yr} Q ${w} ${h} ${w-xr} ${h} H ${xl} Q 0 ${h} 0 ${h-yl}`
+   :dock==='right'
+    ?`M ${w} ${yr} Q ${w} 0 ${w-xr} 0 H ${xl} Q 0 0 0 ${yl} V ${h-yl} Q 0 ${h} ${xl} ${h} H ${w-xr} Q ${w} ${h} ${w} ${h-yr}`
+    :d;
+  recoveryEdge.setAttribute('d',glow);
+  box.dataset.blendLeft=blendLeft.toFixed(4);box.dataset.blendRight=blendRight.toFixed(4);
+ }
+ function syncMorph(){
+  const progress=drag&&drag.moved?drag.edgeBlend:1;
+  blendLeft=dock==='left'?progress:0;
+  blendRight=dock==='right'?progress:0;
+ }
+ let x=0,y=100,dock=null,opened=false,hover=false,drag=null,leaveTimer=null,suppress=false;
+ const clamp=(n,a,b)=>Math.max(a,Math.min(n,Math.max(a,b)));
+ function render(){
+  const compact=dock&&!hover&&!opened&&!(drag&&drag.moved);
+  const width=opened?264:compact?54:base, height=opened?188:36;
+  if(dock)x=dock==='left'?0:stage.clientWidth-width;
+  x=clamp(x,0,stage.clientWidth-width);y=clamp(y,45,stage.clientHeight-height-12);
+  box.classList.toggle('open',opened);box.classList.toggle('docked',!!compact);
+  box.classList.toggle('attached-left',dock==='left');box.classList.toggle('attached-right',dock==='right');
+  box.style.left=dock==='right'?'auto':x+'px';box.style.right=dock==='right'?'0px':'auto';box.style.top=y+'px';head.setAttribute('aria-expanded',String(opened));syncMorph();drawContour();
+ }
+ function center(){dock=null;hover=false;opened=false;x=(stage.clientWidth-base)/2;y=100;render();}
+ let positioned=stage.clientWidth>0;
+ dock=scene.classList.contains('micro')?'right':'left';render();
+ head.addEventListener('pointerdown',e=>{
+  if(e.button!==0)return;
+  clearTimeout(leaveTimer);
+  const actual=box.getBoundingClientRect(), area=stage.getBoundingClientRect();
+  drag={sx:e.clientX,sy:e.clientY,x:actual.left-area.left,y:actual.top-area.top,moved:false};
+  head.setPointerCapture(e.pointerId);
+ });
+ head.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;
+  if(!drag.moved&&Math.hypot(dx,dy)<5)return;
+  drag.moved=true;dock=null;hover=false;opened=false;box.classList.add('dragging');
+  x=drag.x+dx;y=drag.y+dy;
+  const gapLeft=x,gapRight=stage.clientWidth-base-x;
+  dock=gapLeft<settings.reach?'left':gapRight<settings.reach?'right':null;
+  const distance=dock==='left'?gapLeft:gapRight;
+  const proximity=dock?clamp(1-distance/settings.reach,0,1):0;
+  drag.edgeBlend=proximity*proximity*(3-2*proximity);
+  render();
+  scene.querySelector('.left').classList.toggle('on',dock==='left');
+  scene.querySelector('.right').classList.toggle('on',dock==='right');
+ });
+ function finish(e,cancel){
+  if(!drag)return;
+  const moved=drag.moved;drag=null;box.classList.remove('dragging');
+  scene.querySelectorAll('.rail').forEach(r=>r.classList.remove('on'));
+  if(moved){suppress=true;setTimeout(()=>suppress=false,100);if(cancel)dock=null;hover=false;render();}
+  if(head.hasPointerCapture(e.pointerId))head.releasePointerCapture(e.pointerId);
+ }
+ head.addEventListener('pointerup',e=>finish(e,false));head.addEventListener('pointercancel',e=>finish(e,true));
+ head.addEventListener('click',()=>{if(suppress)return;opened=!opened;hover=false;render();});
+ box.addEventListener('pointerenter',()=>{clearTimeout(leaveTimer);if(dock&&!drag){hover=true;render();}});
+ box.addEventListener('pointerleave',()=>{leaveTimer=setTimeout(()=>{if(!drag){hover=false;render();}},400);});
+ stage.addEventListener('pointerdown',e=>{if(!box.contains(e.target)){opened=false;hover=false;render();}});
+ scene.addEventListener('keydown',e=>{if(e.key==='Escape'){opened=false;hover=false;render();head.focus();}if(e.target===head&&e.altKey&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();dock=e.key==='ArrowLeft'?'left':'right';opened=false;hover=false;render();}});
+ scene.querySelectorAll('[data-demo]').forEach(button=>button.addEventListener('click',()=>{
+  const mode=button.dataset.demo;if(mode==='home'){center();return;}
+  const n=mode==='low'?9:100;
+  box.querySelector('.pct').textContent=n+'%';box.querySelector('.amount').textContent=n+'%';box.querySelector('.fill').style.width=n+'%';
+  head.setAttribute('aria-label','周额度剩余 '+n+'%，点击展开，也可拖动');
+  scene.style.setProperty('--signal',mode==='low'?'light-dark(#b85b08,#ffc078)':'light-dark(#007b71,#6ee4ce)');
+  box.querySelector('.foot').textContent=mode==='low'?'低额度演示 · 未连接账户':'恢复动效演示 · 未连接账户';
+  if(mode==='reset'){box.classList.remove('flash');void box.offsetWidth;box.classList.add('flash');}
+ }));
+ new ResizeObserver(()=>{if(stage.clientWidth>0){positioned=true;render();}}).observe(stage);
+ new ResizeObserver(drawContour).observe(box);
+
+});
+})();
+</script>
+</div>
