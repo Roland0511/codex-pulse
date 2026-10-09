@@ -261,3 +261,17 @@ DESIGN 文档 lint 已在获准的沙箱外执行后通过：0 错误、1 项原
 2026-10-09 用户同意收尾并要求提交 / 推送变更、使用其 Developer ID 生成正式手动分发应用。本地 v0.1 交付完成，通知 / 登录项保持关闭，启用后的系统验收及自然重置观察保留为后续，未计为实机通过。
 
 本机已核实 Xcode 27.0、Swift 6.4、notarytool 和 stapler 可用。沙箱内及经授权的沙箱外钥匙串核对均为 0 个有效签名身份；仅发现已过期的开发证书，未发现 Developer ID Application 证书。已请求用户提供证书来源及现有公证凭据配置名，不要求在聊天发送密码或私钥。当前本地包仍是 ad-hoc，不宣称正式签名或公证已完成。
+
+用户提供 Apple ID 后，原生 Xcode 账户及团队管理确认已登录，服务器有 Developer ID Application 证书，但显示 Not in Keychain，所有创建项均不可用。没有撤销证书、修改账户或尝试提取凭据。需要在本机导入含私钥的有效分发身份，并配置 / 指定 notarytool profile，邮箱本身不能替代签名及公证凭据。
+
+源码及此前文档已提交为 `62bc9c1` 并成功推送 `origin/main`；fetch 前后分支无远程新增提交，提交候选 60 个文件的私钥 / 常见令牌模式扫描无发现。原始账户证据、日志、应用构建及凭据扩展名均被忽略。
+
+便携分发流程准备验证：新增 `package_release.py`，默认 arm64 / x86_64 分别编译后合并，去除调试符号；正式模式校验证书类型，签名 helper / app、上传公证、附加并验证票据、校验 Gatekeeper，再签名 / 公证 DMG，最终生成 ZIP、SHA-256 和清单。源码没有嵌入用户 Apple ID 或签名凭据。
+
+`python3 -m unittest discover -s Tests -p 'test_*.py'` 共 7 项通过，其中新增 4 项验证拒绝开发证书、仅选择指定身份、公证拒绝保留 ID 且不附票、附票失败不能报告成功；另实际核对正式命令缺少凭据时退出 1，不降级为候选。原有 65 项 Swift 回归继续适用于未修改的原生源码，没有声称本轮重新执行。
+
+去除调试符号后的 `dist/releases/0.1.0-1-20261009-233207/` 准备候选构建完成，`lipo` 核对 app / helper 都包含 arm64 和 x86_64，两个架构的最低系统为 macOS 14；仅编译 Intel，未做 Intel / macOS 14 实机运行。ZIP 临时解压后及 DMG 只读挂载后均核对 app / helper 的严格 ad-hoc 签名、双架构、无开发者主目录和本机 CLI 提示、Applications 符号链接、候选说明及两份文件的 SHA-256，全部通过。挂载已卸载，未安装到 Applications、未启动候选、未改用户偏好或 hooks。证据为 `local-data/release-candidate.log` 和 `release-candidate-verification.json`，构建清单明确 `notarized=false`；首次未剥离调试符号的准备包另保留，未覆盖。
+
+Developer ID 真实签名、Apple 实际公证、票据与 Gatekeeper 正式通过尚待证书私钥和公证 profile，不能用准备候选或模拟公证用例代替。安装及凭据配置步骤已保存到 `DISTRIBUTION.md`。
+
+收尾复核：原有本机架构构建在 `dist/local-builder-check/` 独立目录通过，未替换驻留应用；再次读取钥匙串仍为 0 个有效签名身份。token 漂移与 `git diff --check` 通过，新增源码和文档未写入用户 Apple ID。准备验证已结束，没有继续运行的构建 / 挂载任务。
