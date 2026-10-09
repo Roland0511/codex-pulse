@@ -334,3 +334,5 @@ DMG 外层追加核验中，沙箱内 codesign / stapler 曾返回签名或读�
 公开前复核：全部 8 个 main 提交已使用 GitHub noreply 身份；全新远端私有克隆含 88 个文件、140 个 blob，Gitleaks 及私钥 / 个人路径 / 邮箱复查通过。首轮 GitHub macOS 15 CI 使用 Swift 6.1.2，在设置页 actor 方法引用转换处发生编译器 IRGen 崩溃；改用显式闭包保持行为，继续复验，首轮失败未计通过。
 
 显式闭包修正后的 GitHub macOS 15 / Swift 6.1.2 检查通过：Swift 回归、Python 回归、tokens / 中英词表漂移检查、便携 Release 构建均成功；本机 Swift 6.4 同一回归再次通过。正式重建将从此兼容源码及干净工作树出发。
+
+源码公开核对：原仓库保留私有归档，原地址的新独立仓库为 public / MIT；新仓库远端 CI 全部通过。禁用凭据的 HTTPS 全新克隆成功，10 个公开提交身份为 GitHub noreply；Gitleaks 通过，未包含本机输出目录。旧私有 SHA 的匿名 API 为 `422 No commit found for SHA`，不存在可读取的旧邮箱提交。GitHub 密钥扫描、推送保护和私密漏洞报告均已启用。v0.1.1 新包已上传 Apple，公证查询遭遇网络超时，沿用已有 ID 恢复，未上传未验证产物。

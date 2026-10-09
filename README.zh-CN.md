@@ -1,6 +1,6 @@
 <p align="center"><img src="docs/assets/hero-zh.svg" alt="Codex Pulse — 一枚轻巧的 macOS 原生额度胶囊。图中为合成示意数据。" width="100%" /></p>
 
-<p align="center"><a href="https://github.com/Roland0511/codex-pulse/releases/latest"><strong>下载 macOS 版</strong></a> · <a href="README.md">English</a> · <a href="docs/USAGE.zh-CN.md">使用指南</a> · <a href="https://github.com/Roland0511/codex-pulse/issues">问题反馈</a></p>
+<p align="center"><a href="https://github.com/Roland0511/codex-pulse/releases/latest"><strong>macOS 发布版本</strong></a> · <a href="README.md">English</a> · <a href="docs/USAGE.zh-CN.md">使用指南</a> · <a href="https://github.com/Roland0511/codex-pulse/issues">问题反馈</a></p>
 
 <p align="center"><img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-19242b?style=flat-square" /> <img alt="通用架构" src="https://img.shields.io/badge/Apple_Silicon_%2B_Intel-universal-007b71?style=flat-square" /> <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-007b71?style=flat-square" /></a> <img alt="中英双语" src="https://img.shields.io/badge/语言-简体中文_%2F_English-19242b?style=flat-square" /></p>
 
@@ -19,6 +19,8 @@ Codex Pulse 把 **Codex 剩余额度和重置倒计时**，放进一枚随手可
 空闲时保持静止。流光限制在额度线的已填充范围，等待审批时暂停，并尊重系统「减少动态效果」。缺失值保持未知，异常或过期读数明确标记。
 
 ## 三步开始
+
+**v0.1.1 正式下载仍在等待公证。** 中英双语应用现可[从源码构建](#自己构建)，只有完整验证通过的包才会附到发布页。
 
 1. 安装并登录官方 **Codex** 应用或 CLI。
 2. 从 [Releases](https://github.com/Roland0511/codex-pulse/releases/latest) 下载通用架构 DMG。

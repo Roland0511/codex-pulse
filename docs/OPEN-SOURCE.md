@@ -17,6 +17,8 @@
 
 ## 状态
 
-当前：实现、原生中英切换及公开分支审计已完成；88 份待公开文件和重写后全部历史的 Gitleaks 扫描通过。最终分发检查、远端 CI 与公开访问验证进行中。完成后在本节追加真实结果；未执行的检查不计通过。后续用户报告应遵循 [SECURITY.md](../SECURITY.md)，不在公开 issue 中提交真实数据。
+当前：源码已公开为 MIT。88 份文件、10 个公开提交及匿名全新克隆的 Gitleaks 扫描通过；提交身份仅使用 GitHub noreply。远端 macOS CI 的 71 项 Swift / 7 项 Python 回归、词表 / token 检查和便携构建通过。新增签名包的 Apple 公证接口反复网络超时，已保留提交编号恢复查询；未验证的包未公开。后续用户报告应遵循 [SECURITY.md](../SECURITY.md)，不在公开 issue 中提交真实数据。
 
 English summary: publication is gated on a tracked-tree and history audit, public commit identity, synthetic artwork, bilingual runtime verification, and signed-container checks. Local credentials, raw evidence, and recovery bundles are excluded. Historical private build hashes are provenance records, not rewritten public commit IDs.
+
+补查强制推送后的旧提交仍可在原私有仓库按 SHA 读取邮箱，因此将原仓库保留为私有归档，在原地址建立独立仓库，仅推送脱敏 main。替换前无 Star、Fork 或 Issue；未删除旧仓库或本机恢复 bundle。公开后匿名克隆成功，旧 SHA 的匿名 API 返回 `422 No commit found for SHA`；MIT 识别、密钥扫描、推送保护与私密漏洞报告均已核对启用。

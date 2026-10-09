@@ -1,6 +1,6 @@
 <p align="center"><img src="docs/assets/hero-en.svg" alt="Codex Pulse — a native quota capsule for macOS. Illustration with synthetic data." width="100%" /></p>
 
-<p align="center"><a href="https://github.com/Roland0511/codex-pulse/releases/latest"><strong>Download for macOS</strong></a> · <a href="README.zh-CN.md">简体中文</a> · <a href="docs/USAGE.en.md">User guide</a> · <a href="https://github.com/Roland0511/codex-pulse/issues">Feedback</a></p>
+<p align="center"><a href="https://github.com/Roland0511/codex-pulse/releases/latest"><strong>macOS releases</strong></a> · <a href="README.zh-CN.md">简体中文</a> · <a href="docs/USAGE.en.md">User guide</a> · <a href="https://github.com/Roland0511/codex-pulse/issues">Feedback</a></p>
 
 <p align="center"><img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-19242b?style=flat-square" /> <img alt="Universal" src="https://img.shields.io/badge/Apple_Silicon_%2B_Intel-universal-007b71?style=flat-square" /> <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-007b71?style=flat-square" /></a> <img alt="English and Chinese" src="https://img.shields.io/badge/languages-EN_%2F_中文-19242b?style=flat-square" /></p>
 
@@ -19,6 +19,8 @@ Built with SwiftUI and AppKit. Quota comes from the official local Codex App Ser
 Idle stays still. Work animation is clipped to the filled quota line, pauses for approvals, and respects Reduce Motion. Missing values stay unknown; failed or stale readings are labeled.
 
 ## Get started
+
+**Signed v0.1.1 downloads are pending notarization.** The bilingual app is available to [build from source](#build-it-yourself) now. Only fully verified packages will be attached to Releases.
 
 1. Install and sign in to the official **Codex** app or CLI.
 2. Download the Universal DMG from [Releases](https://github.com/Roland0511/codex-pulse/releases/latest).
