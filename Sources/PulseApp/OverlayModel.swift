@@ -15,7 +15,7 @@ import PulseCore
     @Published var consumptionDetected = false
     @Published var working = false
     @Published var consumptionAnimating = false
-    var consumptionMessage: String { working ? "Codex 工作中" : "检测到额度消耗" }
+    var consumptionMessage: String { working ? tr("status.working") : tr("status.consuming") }
     private let motionPreference: () -> Bool
     init(motionPreference: @escaping () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }) {
         self.motionPreference = motionPreference

@@ -48,7 +48,7 @@ import AppKit
         defer { store.stop(); overlay.stop() }
         store.start(); try await Task.sleep(for: .milliseconds(100))
         #expect(model.consumptionDetected && model.working && !model.consumptionAnimating)
-        #expect(model.consumptionMessage == "Codex 工作中")
+        #expect(model.consumptionMessage == tr("status.working"))
     }
     @Test func confirmedBurstExpiresWithoutContinuousWork() async throws {
         _ = NSApplication.shared

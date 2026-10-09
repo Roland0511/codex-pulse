@@ -1,14 +1,16 @@
 {
   "profile": "product-admin",
   "sourceRoots": ["Sources/PulseApp"],
-  "locale": "zh-CN",
+  "locale": "en",
+  "supportedLocales": ["en", "zh-Hans"],
   "canonicalMap": "docs/DESIGN.md",
   "requiredCapabilities": [],
-  "requiredCommands": ["unit", "build", "tokens"],
+  "requiredCommands": ["unit", "build", "tokens", "localization"],
   "commands": {
     "unit": "swift test",
     "build": "python3 scripts/build_app.py",
-    "tokens": "python3 scripts/generate_tokens.py --check"
+    "tokens": "python3 scripts/generate_tokens.py --check",
+    "localization": "python3 scripts/generate_localizations.py --check"
   },
   "evidence": {
     "failurePaths": "Tests/PulseAppTests/StoreTests.swift",

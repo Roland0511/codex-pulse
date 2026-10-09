@@ -10,7 +10,8 @@ import UserNotifications
     @Published private(set) var recoverySerial = 0
     @Published private(set) var consumptionSerial = 0
     @Published private(set) var working = false
-    @Published var reminderMessage: String?
+    @Published private var reminderMessageKey: String?
+    var reminderMessage: String? { reminderMessageKey.map { tr($0) } }
     let client: QuotaClient
     let activity: ActivityStore
     private var activitySubscription: AnyCancellable?
@@ -78,18 +79,18 @@ import UserNotifications
         clockTimer?.tolerance = 5
         if demo {
             let date = Date()
-            var windows = [QuotaWindow(bucketID: "演示", slot: "primary", usedPercent: demoScenario == "low" ? 93 : 3, durationMinutes: 10080,
+            var windows = [QuotaWindow(bucketID: "demo", slot: "primary", usedPercent: demoScenario == "low" ? 93 : 3, durationMinutes: 10080,
                                        resetsAt: date.addingTimeInterval(6 * 86400))]
             if demoScenario == "long" {
                 windows = (0..<8).map { index in
-                    QuotaWindow(bucketID: "演示\(index)", bucketName: "合成长文本额度桶：名称很长时仍可查看完整辅助说明 \(index + 1)",
+                    QuotaWindow(bucketID: "demo-\(index)", bucketName: tr("demo.longBucket", index + 1),
                                 slot: "primary", usedPercent: Double(index * 9), durationMinutes: (index + 1) * 120,
                                 resetsAt: date.addingTimeInterval(Double(index + 1) * 90000))
                 }
             }
             if demoScenario == "empty" { windows = [] }
             if demoScenario == "unknown" {
-                windows = [QuotaWindow(bucketID: "演示", slot: "primary", usedPercent: nil, durationMinutes: nil, resetsAt: nil)]
+                windows = [QuotaWindow(bucketID: "demo", slot: "primary", usedPercent: nil, durationMinutes: nil, resetsAt: nil)]
             }
             if demoScenario != "loading" {
                 state.accept(QuotaSnapshot(accountKey: "demo", windows: windows, availableResetCount: demoScenario == "unknown" ? nil : 2,
@@ -232,14 +233,14 @@ import UserNotifications
     func restoreReminders(_ enabled: Bool) { remindersEnabled = enabled }
 
     func enableReminders(_ enabled: Bool) {
-        guard !demo else { reminderMessage = "演示模式不启用通知"; return }
+        guard !demo else { reminderMessageKey = "reminders.demo"; return }
         if !enabled { remindersEnabled = false; LocalDefaults.store.set(false, forKey: "remindersEnabled"); return }
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { [weak self] granted, _ in
             Task { @MainActor in
                 self?.remindersEnabled = granted
                 LocalDefaults.store.set(granted, forKey: "remindersEnabled")
                 if granted { self?.refresh(manual: true) }
-                self?.reminderMessage = granted ? nil : "通知未启用，可在系统设置中允许 Codex Pulse 通知"
+                self?.reminderMessageKey = granted ? nil : "reminders.denied"
             }
         }
     }
@@ -247,8 +248,10 @@ import UserNotifications
         guard remindersEnabled else { return }
         for item in items {
             let content = UNMutableNotificationContent()
-            content.title = "Codex 额度偏低"
-            content.body = "\(item.window.name)剩余 \(QuotaText.percentage(item.window.remainingPercent))"
+            content.title = tr("reminders.title")
+            let text = LanguageStore.shared.text
+            content.body = tr("reminders.body", item.window.localizedName(using: text),
+                              QuotaText.percentage(item.window.remainingPercent, using: text))
             content.sound = .default
             let notification = UNNotificationRequest(identifier: QuotaClient.digest(item.key), content: content, trigger: nil)
             UNUserNotificationCenter.current().add(notification) { _ in }

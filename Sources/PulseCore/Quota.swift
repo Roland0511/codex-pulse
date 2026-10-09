@@ -9,9 +9,16 @@ public struct QuotaWindow: Codable, Equatable, Identifiable, Sendable {
     public let resetsAt: Date?
     public var id: String { "\(bucketID):\(slot)" }
     public var remainingPercent: Double? { usedPercent.map { 100 - $0 } }
-    public var name: String {
-        let period = durationMinutes.map { "\(QuotaText.duration($0))额度" } ?? "周期未知"
-        return "\(bucketName ?? bucketID) · \(period)"
+    public var name: String { localizedName(using: PulseText()) }
+    public func localizedName(using text: PulseText) -> String {
+        let period: String
+        if let minutes = durationMinutes {
+            if minutes % 1440 == 0 { period = text.string("period.days", minutes / 1440) }
+            else if minutes % 60 == 0 { period = text.string("period.hours", minutes / 60) }
+            else { period = text.string("period.minutes", minutes) }
+        } else { period = text.string("quota.periodUnknown") }
+        let bucket = bucketID == "demo" ? text.string("demo.bucket") : bucketName ?? bucketID
+        return "\(bucket) · \(period)"
     }
 
     public init(bucketID: String, bucketName: String? = nil, slot: String,
@@ -95,18 +102,20 @@ import CoreFoundation
 public enum QuotaError: Error, Equatable, Sendable {
     case executableMissing, unauthenticated, unsupportedAccount, identityUnavailable
     case accountChanged, invalidResponse, disconnected, timedOut, permissionDenied, serviceUnavailable
-    public var message: String {
+    public var message: String { message(using: PulseText()) }
+    public func message(using text: PulseText) -> String { text.string(messageKey) }
+    private var messageKey: String {
         switch self {
-        case .executableMissing: "找不到 Codex；请在设置中选择可执行文件"
-        case .unauthenticated: "未登录；请打开 Codex 恢复登录"
-        case .unsupportedAccount: "当前登录方式不提供套餐额度"
-        case .identityUnavailable: "无法确认当前账户；请打开 Codex 检查登录"
-        case .accountChanged: "账户已变化，正在重新读取"
-        case .invalidResponse: "额度响应不完整；请稍后刷新"
-        case .disconnected: "与 Codex 的连接已中断"
-        case .timedOut: "读取超时；请稍后刷新"
-        case .permissionDenied: "无权读取额度；请打开 Codex 检查登录"
-        case .serviceUnavailable: "额度服务暂不可用"
+        case .executableMissing: "error.executableMissing"
+        case .unauthenticated: "error.unauthenticated"
+        case .unsupportedAccount: "error.unsupportedAccount"
+        case .identityUnavailable: "error.identityUnavailable"
+        case .accountChanged: "error.accountChanged"
+        case .invalidResponse: "error.invalidResponse"
+        case .disconnected: "error.disconnected"
+        case .timedOut: "error.timedOut"
+        case .permissionDenied: "error.permissionDenied"
+        case .serviceUnavailable: "error.serviceUnavailable"
         }
     }
     public var clearsSnapshot: Bool {
@@ -118,21 +127,23 @@ public enum QuotaError: Error, Equatable, Sendable {
 }
 
 public enum QuotaText {
-    public static func duration(_ minutes: Int) -> String {
-        if minutes % 1440 == 0 { return "\(minutes / 1440) 天" }
-        if minutes % 60 == 0 { return "\(minutes / 60) 小时" }
-        return "\(minutes) 分钟"
+    public static func duration(_ minutes: Int, using text: PulseText = PulseText()) -> String {
+        let unit = minutes % 1440 == 0 ? "days" : minutes % 60 == 0 ? "hours" : "minutes"
+        let count = unit == "days" ? minutes / 1440 : unit == "hours" ? minutes / 60 : minutes
+        return text.string("duration.\(unit).\(count == 1 ? "one" : "other")", count)
     }
-    public static func countdown(_ reset: Date?, now: Date) -> String {
-        guard let reset else { return "重置时间未知" }
+    public static func countdown(_ reset: Date?, now: Date, using text: PulseText = PulseText(), compact: Bool = false) -> String {
+        guard let reset else { return text.string("quota.resetUnknown") }
         let seconds = reset.timeIntervalSince(now)
-        if seconds <= 0 { return "重置时间已到" }
-        if seconds >= 86400 { return "\(Int(ceil(seconds / 86400))) 天后重置" }
-        if seconds >= 3600 { return "\(Int(ceil(seconds / 3600))) 小时后重置" }
-        return "\(max(1, Int(ceil(seconds / 60)))) 分钟后重置"
+        if seconds <= 0 { return text.string("quota.resetDue") }
+        let unit = seconds >= 86400 ? "days" : seconds >= 3600 ? "hours" : "minutes"
+        let divisor = unit == "days" ? 86400.0 : unit == "hours" ? 3600.0 : 60.0
+        let count = max(1, Int(ceil(seconds / divisor)))
+        if compact { return text.string("countdown.\(unit)", count) }
+        return text.string("countdown.full", text.string("duration.\(unit).\(count == 1 ? "one" : "other")", count))
     }
-    public static func percentage(_ remaining: Double?) -> String {
-        guard let remaining else { return "未知" }
+    public static func percentage(_ remaining: Double?, using text: PulseText = PulseText()) -> String {
+        guard let remaining else { return text.string("quota.unknown") }
         if remaining > 0 && remaining < 1 { return "<1%" }
         return "\(Int(remaining.rounded(.down)))%"
     }

@@ -96,7 +96,7 @@ let background = bitmap(width: Int(width * 2), height: Int(height * 2), scale: 2
     white.blended(withFraction: 0.025, of: teal)!.setFill()
     NSRect(x: 0, y: 0, width: width, height: height).fill()
     text("Codex Pulse", x: width / 2, top: 38, size: 28, weight: .semibold, color: ink, centered: true)
-    text("将左侧应用拖入右侧「应用程序」", x: width / 2, top: 84, size: 15, weight: .regular, color: muted, centered: true)
+    text("将应用拖入右侧文件夹 · Drag the app to Applications", x: width / 2, top: 84, size: 14, weight: .regular, color: muted, centered: true)
     // 箭头与原生图标中心同轴；品牌细线只表达安装方向。
     let center = height - appPosition[1]
     let middle = width / 2
@@ -107,9 +107,9 @@ let background = bitmap(width: Int(width * 2), height: Int(height * 2), scale: 2
     teal.withAlphaComponent(0.85).setStroke(); path.stroke()
     color("edge", "light").setFill()
     NSRect(x: 40, y: height - 326, width: width - 80, height: 1).fill()
-    let note = arguments[4] == "candidate" ? "预览安装包 · 尚未公证" : "macOS 14 及以上"
+    let note = arguments[4] == "candidate" ? "预览 / Preview · 未公证 / Unnotarized" : "macOS 14+"
     text(note, x: 40, top: 346, size: 12, weight: .regular, color: muted)
-    let ending = "安装后请弹出磁盘映像" as NSString
+    let ending = "安装后弹出 · Eject after installing" as NSString
     let endingWidth = ending.size(withAttributes: [.font: NSFont.systemFont(ofSize: 12)]).width
     text(ending as String, x: width - 40 - endingWidth, top: 346, size: 12, weight: .regular, color: muted)
 }

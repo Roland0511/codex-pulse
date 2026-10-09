@@ -42,6 +42,7 @@ def sign(path, identity=None, keychain=None, hardened=True):
 def build(args):
     identity = signing_identity(args.identity, args.keychain) if args.identity else None
     subprocess.run(["python3", "scripts/generate_tokens.py", "--check"], cwd=ROOT, check=True)
+    subprocess.run(["python3", "scripts/generate_localizations.py", "--check"], cwd=ROOT, check=True)
     architectures = ["arm64", "x86_64"] if args.architecture == "universal" else [args.architecture]
     bins = []
     for architecture in architectures:
@@ -61,6 +62,7 @@ def build(args):
     resources = stage / "Contents/Resources"
     resources.mkdir()
     shutil.copy2(artwork / "AppIcon.icns", resources / "AppIcon.icns")
+    shutil.copy2(ROOT / "LICENSE", resources / "LICENSE.txt")
     for name in ("CodexPulse", "PulseActivityHook"):
         target = macos / name
         if len(bins) == 1:
@@ -74,6 +76,7 @@ def build(args):
         "CFBundleExecutable": "CodexPulse", "CFBundleIdentifier": "dev.roland.codex-pulse",
         "CFBundleName": "Codex Pulse", "CFBundleDisplayName": "Codex Pulse",
         "CFBundleIconFile": "AppIcon",
+        "CFBundleDevelopmentRegion": "en", "CFBundleLocalizations": ["en", "zh-Hans"],
         "CFBundlePackageType": "APPL", "CFBundleShortVersionString": args.version, "CFBundleVersion": args.build_number,
         "LSMinimumSystemVersion": "14.0", "LSUIElement": True,
         "NSPrincipalClass": "NSApplication", "NSHighResolutionCapable": True,
@@ -100,8 +103,8 @@ def main():
     parser.add_argument("--architecture", choices=["native", "arm64", "x86_64", "universal"], default="native")
     parser.add_argument("--portable", action="store_true", help="不写入本机 CLI 路径；正式签名时自动生效")
     parser.add_argument("--output-dir", type=pathlib.Path, default=ROOT / "dist")
-    parser.add_argument("--version", default="0.1.0")
-    parser.add_argument("--build-number", default="2")
+    parser.add_argument("--version", default="0.1.1")
+    parser.add_argument("--build-number", default="3")
     args = parser.parse_args()
     if not re.fullmatch(r"\d+\.\d+\.\d+", args.version) or not re.fullmatch(r"[1-9]\d*", args.build_number):
         parser.error("version 必须为三段数字，build-number 必须为正整数")

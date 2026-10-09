@@ -1,105 +1,83 @@
-# Codex Pulse
+<p align="center"><img src="docs/assets/hero-en.svg" alt="Codex Pulse — a native quota capsule for macOS. Illustration with synthetic data." width="100%" /></p>
 
-一个极简的 macOS 原生 Codex 额度浮动胶囊。
+<p align="center"><a href="https://github.com/Roland0511/codex-pulse/releases/latest"><strong>Download for macOS</strong></a> · <a href="README.zh-CN.md">简体中文</a> · <a href="docs/USAGE.en.md">User guide</a> · <a href="https://github.com/Roland0511/codex-pulse/issues">Feedback</a></p>
 
-平时只显示剩余额度和重置倒计时；拖到屏幕侧边自动吸附，点击展开必要信息。图钉可让吸附长条保持展开；启用工作状态连接后，Codex 工作期间在细额度线的已填充段内持续播放流光，空闲时保持静止。
+<p align="center"><img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-19242b?style=flat-square" /> <img alt="Universal" src="https://img.shields.io/badge/Apple_Silicon_%2B_Intel-universal-007b71?style=flat-square" /> <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-007b71?style=flat-square" /></a> <img alt="English and Chinese" src="https://img.shields.io/badge/languages-EN_%2F_中文-19242b?style=flat-square" /></p>
 
-## 当前状态
+Codex Pulse keeps your **remaining Codex quota and reset countdown** within reach, in a small floating capsule. Drag it to either screen edge, pin it open when you need it, and get back to your work.
 
-- 阶段：2026-10-10 v0.1 本地交付、正式分发及安装界面美化完成，65 项 Swift 回归通过；12/12 hooks 已受信任，真实工作 / Stop / 审批等待及恢复通过，设置页额度核对、连续 600 秒空闲、全屏和减少动态效果已验收。流光范围、渐隐及水平对齐已原生抽查。用户选择通知 / 登录项保持关闭；启用后的系统验收和正式账户自然重置观察留到后续，未计为通过。
-- 平台：macOS 14+；本次已在 Apple Silicon / macOS 26.6.2 验证，未验证 Intel 或所有历史系统。
-- 实现：SwiftUI + AppKit（NSPanel），通过官方本地 Codex App Server 读取额度。
-- 源码已提交并推送 `origin/main`。v0.1.0（构建 2）提供完整应用图标和中文拖放安装界面；通用架构 DMG / ZIP 已通过 Developer ID 签名、Apple 公证、票据及 Gatekeeper，最终 ZIP 解压和 DMG 包内应用另行核验通过，真实 Finder 布局已确认。当前交付目录为 `dist/releases/0.1.0-2-20261010-001426/`。安装及重复打包见 [手动分发说明](docs/DISTRIBUTION.md)，验证范围见 [验证记录](docs/VERIFICATION.md)。
+Built with SwiftUI and AppKit. Quota comes from the official local Codex App Server. The app does not read your conversations.
 
-## 构建与运行
+## A little presence, useful detail
 
-开发构建需要 Xcode Command Line Tools（Swift 6+）和 Python 3。使用已打包的应用无需这些构建工具，只需要已安装并登录的官方 Codex；可优先使用桌面包内的 CLI，也支持独立官方 CLI。
+| At a glance | When you need more |
+| --- | --- |
+| **A thin quota line.** Remaining percentage and reset countdown. | **Every available window.** Click for reset times and the latest successful update. |
+| **Dock and pin.** Edge attachment, hover expansion, and a pin to keep it open. | **Your colors.** Follow Codex appearance or choose system, light, or dark. |
+| **Work in motion.** An optional light trace follows confirmed Codex activity. | **Your language.** English and Simplified Chinese, switchable in Settings. |
+
+Idle stays still. Work animation is clipped to the filled quota line, pauses for approvals, and respects Reduce Motion. Missing values stay unknown; failed or stale readings are labeled.
+
+## Get started
+
+1. Install and sign in to the official **Codex** app or CLI.
+2. Download the Universal DMG from [Releases](https://github.com/Roland0511/codex-pulse/releases/latest).
+3. Drag **Codex Pulse.app → Applications**, eject the disk image, and open the app.
+
+Release DMG and ZIP files are Developer ID signed, notarized by Apple, and stapled. Check downloads against the release's `SHA256SUMS.txt`.
+
+**Requires macOS 14+.** Universal builds include Apple Silicon and Intel. Runtime verification has been performed on Apple Silicon; Intel and older macOS versions still need real-device coverage.
+
+| Action | How |
+| --- | --- |
+| Show / hide | `⌃⌥⌘P`, configurable in Settings |
+| Quota details | Click the capsule, or menu → **Show quota details** |
+| Close details | `Escape` or click outside |
+| Keep an edge bar open | Click the pin |
+| Move without dragging | Menu → **Position** |
+| Change language | Settings → **Language** → Follow system / 简体中文 / English |
+
+### Optional work animation
+
+Open **Settings → Work animation**, review the definitions, then install. In Codex CLI, use `/hooks` to review and trust all **12** Pulse definitions. Return to Pulse and choose **Check connection**.
+
+The hooks send lifecycle metadata to a local socket. Existing hooks are preserved and backed up. Turning the feature off removes only Pulse handlers. Nothing is installed automatically. [How it works →](docs/USAGE.en.md#work-animation)
+
+Low quota alerts and launch at login are also **off by default**. Notification permission is requested only when you enable alerts.
+
+## Privacy you can inspect
+
+- **Local quota access.** Authentication stays with the official service. Pulse does not parse tokens or browser cookies.
+- **No conversation reader.** No chat logs, prompts, tool arguments, or replies are collected. The helper skips content and sends only allowlisted status metadata and hashed identifiers locally.
+- **No Pulse backend or analytics.** Snapshots stay in memory. Preferences, hook backups, and alert deduplication stay on your Mac.
+- **No account actions.** Pulse does not reset quota, buy credits, sign you out, or control agents.
+
+Following Codex appearance reads a small allowlist of theme settings. Enabling work animation explicitly changes local hook configuration; quota reading itself is read-only.
+
+## Build it yourself
+
+You need Swift 6+, Xcode Command Line Tools, and Python 3. Installed release apps do not need these tools.
 
 ```sh
+git clone https://github.com/Roland0511/codex-pulse.git
+cd codex-pulse
 swift test
-python3 scripts/generate_tokens.py --check
 python3 scripts/build_app.py
 open "dist/Codex Pulse.app"
 ```
 
-默认构建生成带完整应用图标的 `dist/Codex Pulse.app`，使用本机架构和 ad-hoc 签名；这不是正式分发包。旧构建会保留在 `dist/previous-*.app`。构建结果与本机证据已被 Git 忽略。Developer ID 正式签名、公证、带安装背景和拖放布局的通用架构 DMG / ZIP 流程见 [手动分发说明](docs/DISTRIBUTION.md)。
+This produces an **ad-hoc signed development app**, not a notarized release. See the [English build guide](docs/BUILD.en.md) or [中文分发说明](docs/DISTRIBUTION.md) for Developer ID packaging.
 
-若找不到 `codex`，从菜单栏打开设置，选择官方 CLI 可执行文件。本地开发构建会保存本机 CLI 路径提示，便携 / 正式分发构建不会携带该路径；应用优先解析官方安装包内的原生二进制，减少 Node 包装进程开销。
+Translations live in `Resources/Localization/`. After editing them, run `python3 scripts/generate_localizations.py`; `--check` detects missing keys, mismatched placeholders, and generated-table drift.
 
-## 使用
+## Explore and contribute
 
-- 拖动主体移动；拖到左右边缘吸附，松手收为标签。点击查看所有额度窗口。
-- 吸附伸出的长条右侧图钉可固定为 204 pt 长条，再点取消；选择和位置会保存。自由胶囊仍为 180 × 36 pt。
-- 默认 `Control + Option + Command + P` 显示 / 隐藏，设置中可修改组合并检测注册冲突。
-- 鼠标打开详情不抢键盘焦点。菜单「展开额度详情」提供键盘入口，`Escape` 关闭详情；固定长条仍保留。
-- 菜单「位置」提供移到中央或吸附左右侧的操作。菜单还提供刷新、设置、打开 Codex 和退出。
-- 提醒和开机启动默认关闭，由用户主动启用；通知权限仅在启用提醒时申请。
-- 所有路径、正式与演示模式共享同一用户的单实例锁；重复启动显示现有胶囊并退出新增进程。
-- 默认跟随 Codex 设置中的深浅模式、背景、文字及强调色；修改 Codex 配色后自动更新。设置中仍可选择系统、浅色或深色。
+[English user guide](docs/USAGE.en.md) · [中文使用指南](docs/USAGE.zh-CN.md) · [Design](docs/DESIGN.md) · [Plan](docs/V0.1-PLAN.md) · [Verification](docs/VERIFICATION.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
-## 数据与刷新
+The first release focuses on one account's quota capsule. Dashboards, conversation browsing, agent controls, and multi-service aggregation are outside its scope. Local Codex protocols may change; compatibility reports with your app and Codex versions are welcome.
 
-按服务实际返回的额度桶与窗口长度解析，显示剩余比例最低的窗口；详情列出所有窗口、本地时间的重置时间、可用重置次数（存在时）和成功更新时间。缺失值保持未知。
+## Credits and license
 
-可见时每 60 秒刷新，主动隐藏时每 5 分钟刷新；打开详情超过 15 秒未更新才补刷。请求合并、超时和失败退避均有限制。锁屏 / 睡眠暂停，恢复立即补刷。刷新失败立即标记异常，超过 3 分钟标记过期；缓存只留内存，账户切换先清除旧数据。
+Inspired by [QuotaView](https://github.com/Duoasa/QuotaView) and [Codex Monitor](https://github.com/jackiemingnew/codex-monitor-macos). Their README structures informed the feature, setup, and privacy sections; Pulse's implementation and artwork are independently authored.
 
-每次刷新通过官方服务复用登录，只调用 `initialize`、`account/read`（不刷新令牌）和 `account/rateLimits/read`；启用工作特效时额外只读调用 `hooks/list` 核对信任。两种读取复用同一服务，读取后保留 10 秒，再退出自己的服务，下一次轮询重新握手。不会读取认证文件、浏览器 Cookie 或聊天记录，不创建推理任务，也不执行重置、购买积分或登出。
-
-工作状态通过官方生命周期 hooks 单独接入：helper 跳过提示词、工具参数 / 回复及其它正文，只发送事件、哈希标识、时间和源进程生命期；不读取会话文件、不输出上下文、不控制代理。任一已确认会话工作时在 2 pt 额度线的已填充段内持续播放细线流光，不横跨未填充底轨；每圈左端渐隐、透明后右端淡入，0 / 未知仅保留工作文字。等待许可、结束和中断后停止；多个会话独立汇总。减少动态效果时仅保留静态文字。
-
-工作特效默认关闭，首次启动只在菜单中提供轻提示。发布包内置安装器和 helper：打开「设置 → 工作特效」，查看新增定义后安装，再按「信任步骤」到 Codex CLI 的 `/hooks` 审阅并信任全部 12 条定义，回到设置点击「检查连接」。设置区分「未启用」「等待审阅信任」和「连接就绪」；全部启用且受信任后才播放持续流光。关闭开关只移除 Pulse 的 handlers，保留其它配置和可恢复备份。整个流程无需 Python、源码或手工修改配置，不改写 Codex 信任记录。
-
-**本机已获用户授权安装并信任全部 12 条定义，真实工作持续流光、Stop 及用户授权的实际审批等待 / 恢复均已观察。** 开发者仍可使用 `scripts/activity_hooks.py` 的 prepare / install / remove 命令；具体流程、覆盖边界及参考项目结论见 [工作状态接入](docs/ACTIVITY.md)。
-
-独立额度服务仍看不到桌面其它会话；不把没有信号当成已确认空闲。新鲜快照确认同周期用量增加时，仍可播放 3.2 秒「检测到额度消耗」的补充反馈。额度整数未变不会阻止已接入的工作状态流光。
-
-外观同步只读 Codex 配置中的外观白名单字段，不解析其它设置，也不修改源文件；缺失或不支持的配置退回冻结色板，并在设置中提示。外观存储结构已在本机核实，Codex 升级后可能需要适配。
-
-## 合成预览与验证
-
-先退出正式实例，再运行演示包；两种模式不能并行。演示不读取服务，不注册全局快捷键、不启用系统通知或开机启动，并使用独立偏好设置。
-
-```sh
-python3 scripts/build_demo.py consuming
-open "dist/Codex Pulse Demo.app"
-```
-
-支持 `normal`、`long`、`empty`、`unknown`、`loading`、`error`、`stale`、`logout`、`low`、`consuming`、`working` 合成场景；`consuming` 每 6 秒播放短暂流光，`working` 持续演示工作流光。两者均明确标注演示数据，正常模式没有合成事件。
-
-只读探测及资源采样写入本机 `private-evidence/`，不应提交真实值或截图：
-
-```sh
-python3 scripts/probe.py
-python3 scripts/sample_idle.py --pid APP_PID --seconds 600 --interval 1
-```
-
-## 第一版
-
-- 约 180 × 36 pt 的横向胶囊：剩余百分比、重置倒计时、细额度条。
-- 自由拖动、左右侧边吸附、图钉固定、位置记忆、多屏回退。
-- 点击展开小面板：额度窗口、准确重置时间、可用重置次数、最后更新时间。
-- 低额度提醒、异常与过期数据提示、菜单栏入口和隐藏快捷键。
-- 吸附、展开、数值更新、重置反馈及随已确认工作状态持续播放的细线流光。
-
-第一版不做任务列表、token 图表、模型信息、CPU/内存监控、多账户管理或额度重置操作。
-
-## 已冻结设计
-
-采用「细线胶囊」，参数与行为以 [设计规范](docs/DESIGN.md) 为准。可打开 [交互参考](design/v0.1/thin-capsule.html) 查看。
-
-## 文档
-
-- [v0.1 实施计划](docs/V0.1-PLAN.md)：里程碑、边界、估算及验收标准。
-- [设计约定](docs/DESIGN.md)：布局、交互、信息优先级和动效。
-- [验证记录](docs/VERIFICATION.md)：技术测试、原生抽查、真实交互与待验项目。
-- [工作状态接入](docs/ACTIVITY.md)：官方 hooks 的审阅 / 安装 / 撤销、只保留状态的边界及参考项目调研。
-- [手动分发说明](docs/DISTRIBUTION.md)：Developer ID、钥匙串公证凭据、通用架构 DMG / ZIP 与安装步骤。
-- [项目协作约定](AGENTS.md)：开发和验证规则。
-
-## 参考
-
-- [Codex App Server 官方文档](https://learn.chatgpt.com/docs/app-server)
-- [QuotaView](https://github.com/Duoasa/QuotaView)
-- [Codex Monitor](https://github.com/jackiemingnew/codex-monitor-macos)
-
-2026-10-09 已核查两个项目的会话信号实现，借鉴 QuotaView 官方生命周期 hooks 的架构思路；本次代码独立编写，没有复制第三方代码。版本、来源和未采用路径见 [工作状态接入](docs/ACTIVITY.md)。后续复用代码时核实许可证并保留要求的声明。
+[MIT](LICENSE) © 2026 Roland0511. An independent community project, not affiliated with or endorsed by OpenAI. Product names belong to their respective owners.

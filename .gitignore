@@ -15,3 +15,12 @@ __pycache__/
 *.pfx
 *.p8
 *.key
+*.pem
+*.cer
+*.crt
+*.keychain
+*.keychain-db
+*.mobileprovision
+*.provisionprofile
+*.bundle
+*.log

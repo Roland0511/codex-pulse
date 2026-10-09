@@ -41,6 +41,8 @@ struct OverlayView: View {
     @ObservedObject var store: QuotaStore
     @ObservedObject var model: OverlayModel
     @ObservedObject private var appearance = AppearanceStore.shared
+    @ObservedObject private var language = LanguageStore.shared
+    private var text: PulseText { language.text }
     private var palette: Palette { appearance.palette }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var refreshFocused: Bool
@@ -52,28 +54,29 @@ struct OverlayView: View {
         return remaining <= 10 ? palette.danger : remaining <= 20 ? palette.warning : palette.signal
     }
     private var statusText: String {
-        if store.demo, store.status == .ready { return "演示数据" }
-        let prefix = store.demo ? "演示 · " : ""
+        if store.demo, store.status == .ready { return tr("status.demo") }
+        let prefix = store.demo ? tr("status.demo.prefix") : ""
         switch store.status {
-        case .loading: return prefix + "读取中"
-        case .ready: return restricted ? "额度受限" : "剩余额度"
-        case .unavailable: return prefix + "额度不可用"
-        case .unauthenticated: return prefix + "未登录"
-        case .failed: return prefix + "连接异常"
-        case .stale: return prefix + "数据已过期"
+        case .loading: return prefix + tr("status.loading")
+        case .ready: return restricted ? tr("status.restricted") : tr("status.remaining")
+        case .unavailable: return prefix + tr("status.unavailable")
+        case .unauthenticated: return prefix + tr("status.signedOut")
+        case .failed: return prefix + tr("status.failed")
+        case .stale: return prefix + tr("status.stale")
         }
     }
     private var percentage: String {
-        if let selected { return QuotaText.percentage(selected.remainingPercent) }
+        if let selected { return QuotaText.percentage(selected.remainingPercent, using: text) }
         return store.status == .loading ? "···" : "—"
     }
     private var emptyWindowMessage: String {
-        store.state.error?.message ?? (store.status == .loading ? "正在读取额度…" : "服务未返回可用窗口")
+        store.state.error?.message(using: text) ?? (store.status == .loading ? tr("status.reading") : tr("status.empty"))
     }
     private var accessibilitySummary: String {
-        guard let selected else { return "\(statusText)。\(emptyWindowMessage)" }
-        return "\(statusText)，\(selected.name)，剩余 \(percentage)，\(QuotaText.countdown(selected.resetsAt, now: store.now))" +
-            (model.consumptionDetected ? "，\(model.consumptionMessage)" : "")
+        guard let selected else { return "\(statusText) · \(emptyWindowMessage)" }
+        return tr("quota.summary", statusText, selected.localizedName(using: text), percentage,
+                  QuotaText.countdown(selected.resetsAt, now: store.now, using: text)) +
+            (model.consumptionDetected ? " · \(model.consumptionMessage)" : "")
     }
     var body: some View {
         ZStack(alignment: .top) {
@@ -127,7 +130,7 @@ struct OverlayView: View {
             .accessibilityLabel(accessibilitySummary)
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { model.toggle?() }
-            .accessibilityHint("点击展开全部额度；可从菜单栏调整位置")
+            .accessibilityHint(tr("quota.hint"))
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     Capsule().fill(palette.track)
@@ -160,9 +163,9 @@ struct OverlayView: View {
                         .frame(width: 26, height: 28).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain).padding(.trailing, 4)
-                .accessibilityLabel(model.pinned ? "取消固定长条" : "固定为长条")
-                .accessibilityValue(model.pinned ? "已固定" : "未固定")
-                .help(model.pinned ? "取消固定，鼠标离开后收回" : "固定为长条，鼠标离开后保持展开")
+                .accessibilityLabel(model.pinned ? tr("pin.unpin") : tr("pin"))
+                .accessibilityValue(model.pinned ? tr("pin.on") : tr("pin.off"))
+                .help(model.pinned ? tr("pin.unpin.hint") : tr("pin.hint"))
             }
         }
         .accessibilityElement(children: .contain)
@@ -172,7 +175,7 @@ struct OverlayView: View {
         guard store.status == .ready, !restricted, !store.demo else { return statusText }
         if model.consumptionDetected { return "· \(model.consumptionMessage)" }
         guard let selected else { return statusText }
-        let countdown = QuotaText.countdown(selected.resetsAt, now: store.now).replacingOccurrences(of: " ", with: "")
+        let countdown = QuotaText.countdown(selected.resetsAt, now: store.now, using: text, compact: true)
         return "· \(countdown)"
     }
 
@@ -181,27 +184,32 @@ struct OverlayView: View {
             Divider().overlay(palette.edge)
             HStack {
                 Text(statusText).font(.system(size: 11, weight: .medium)).foregroundStyle(palette.muted)
+                    .lineLimit(1)
                 Spacer()
-                if model.consumptionDetected {
-                    Label(model.consumptionMessage, systemImage: "sparkles").font(.system(size: 9)).foregroundStyle(palette.signal)
+                if store.refreshing {
+                    Text(tr("status.refreshing")).font(.system(size: 10)).foregroundStyle(palette.muted)
+                        .fixedSize()
                 }
-                if store.refreshing { Text("刷新中…").font(.system(size: 10)).foregroundStyle(palette.muted) }
+            }
+            if model.consumptionDetected {
+                Label(model.consumptionMessage, systemImage: "sparkles")
+                    .font(.system(size: 9)).foregroundStyle(palette.signal).lineLimit(1)
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(store.state.snapshot?.windows ?? []) { window in
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(alignment: .firstTextBaseline) {
-                                Text(window.name).font(.system(size: 11)).foregroundStyle(palette.muted)
-                                    .lineLimit(2).help(window.name)
+                                Text(window.localizedName(using: text)).font(.system(size: 11)).foregroundStyle(palette.muted)
+                                    .lineLimit(2).help(window.localizedName(using: text))
                                 Spacer(minLength: 6)
-                                Text(QuotaText.percentage(window.remainingPercent)).font(.system(size: 15, weight: .medium))
+                                Text(QuotaText.percentage(window.remainingPercent, using: text)).font(.system(size: 15, weight: .medium))
                                     .monospacedDigit().fixedSize()
                             }
                             if let reset = window.resetsAt {
-                                Text("重置时间 \(reset.formatted(date: .abbreviated, time: .shortened))")
+                                Text(tr("quota.resetAt", text.date(reset)))
                                     .font(.system(size: 10)).foregroundStyle(palette.muted)
-                            } else { Text("重置时间未知").font(.system(size: 10)).foregroundStyle(palette.muted) }
+                            } else { Text(tr("quota.resetUnknown")).font(.system(size: 10)).foregroundStyle(palette.muted) }
                         }.accessibilityElement(children: .combine)
                     }
                     if store.state.snapshot?.windows.isEmpty != false {
@@ -213,21 +221,21 @@ struct OverlayView: View {
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }.scrollIndicators(.automatic)
             if let error = store.state.error, store.state.snapshot?.windows.isEmpty == false {
-                Text(error.message).font(.system(size: 10)).foregroundStyle(palette.warning).fixedSize(horizontal: false, vertical: true)
+                Text(error.message(using: text)).font(.system(size: 10)).foregroundStyle(palette.warning).fixedSize(horizontal: false, vertical: true)
             }
             if store.state.snapshot?.ordinaryUsageAllowed == false || store.state.snapshot?.hasReachedLimit == true {
-                Text("服务报告当前额度受限").font(.system(size: 10)).foregroundStyle(palette.warning)
+                Text(tr("quota.restricted")).font(.system(size: 10)).foregroundStyle(palette.warning)
             }
             if let count = store.state.snapshot?.availableResetCount {
-                Text("可用重置次数：\(count)").font(.system(size: 10)).foregroundStyle(palette.muted)
+                Text(tr("quota.resetCount", count)).font(.system(size: 10)).foregroundStyle(palette.muted)
             }
             HStack {
                 if let date = store.state.snapshot?.fetchedAt {
-                    Text("更新于 \(date.formatted(date: .omitted, time: .standard))")
+                    Text(tr("quota.updated", text.date(date, includesDate: false)))
                         .font(.system(size: 9)).foregroundStyle(palette.muted)
                 }
                 Spacer()
-                Button("刷新") { store.refresh(manual: true) }.buttonStyle(.plain)
+                Button(tr("refresh")) { store.refresh(manual: true) }.buttonStyle(.plain)
                     .foregroundStyle(palette.signal).disabled(store.refreshing || store.demo)
                     .focused($refreshFocused).keyboardShortcut("r", modifiers: [.command])
             }

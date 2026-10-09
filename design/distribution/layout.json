@@ -4,6 +4,6 @@
   "textSize": 13,
   "appPosition": [160, 210],
   "destinationPosition": [480, 210],
-  "destinationName": "应用程序",
+  "destinationName": "Applications",
   "icon": {"canvas": 1024, "inset": 96, "radius": 184}
 }

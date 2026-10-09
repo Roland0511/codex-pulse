@@ -15,7 +15,7 @@ import PulseCore
         defer { connection.stop(); store.stop() }
         connection.refresh()
         #expect(!connection.installed && !connection.verified && !connection.checking)
-        #expect(connection.status == "未启用" && client.requestCount == 0 && client.processID == nil)
+        #expect(connection.status == tr("activity.disabled") && client.requestCount == 0 && client.processID == nil)
         #expect(!FileManager.default.fileExists(atPath: root.path))
     }
 }

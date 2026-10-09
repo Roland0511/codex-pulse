@@ -43,7 +43,7 @@ struct ShortcutChoice: Codable, Equatable {
     }
     func register(_ next: ShortcutChoice) -> String? {
         guard let code = ShortcutChoice.keyCodes[next.key], [next.command, next.option, next.control, next.shift].filter({ $0 }).count >= 2 else {
-            return "请选择至少两个修饰键"
+            return tr("shortcut.modifiers")
         }
         let old = choice
         if let reference { UnregisterEventHotKey(reference) }; reference = nil
@@ -53,7 +53,7 @@ struct ShortcutChoice: Codable, Equatable {
             if let oldCode = ShortcutChoice.keyCodes[old.key] {
                 _ = RegisterEventHotKey(oldCode, old.modifiers, id, GetApplicationEventTarget(), 0, &reference)
             }
-            return "快捷键被占用或系统拒绝注册（\(status)），请选择另一组"
+            return tr("shortcut.failed", Int(status))
         }
         choice = next
         if let data = try? JSONEncoder().encode(next) { LocalDefaults.store.set(data, forKey: "shortcut") }
@@ -64,7 +64,7 @@ struct ShortcutChoice: Codable, Equatable {
         guard enabled else { return nil }
         let id = EventHotKeyID(signature: 0x50554c53, id: 2)
         let status = RegisterEventHotKey(53, 0, id, GetApplicationEventTarget(), 0, &escapeReference)
-        return status == noErr ? nil : "Escape 全局收起不可用；可再次点击胶囊收起（\(status)）"
+        return status == noErr ? nil : tr("shortcut.escape", Int(status))
     }
     func stop() {
         if let escapeReference { UnregisterEventHotKey(escapeReference) }
@@ -81,6 +81,7 @@ struct ShortcutChoice: Codable, Equatable {
     @Published var appearance = "codex"
     @Published var executablePath = ""
     private var window: NSWindow?
+    private var languageSubscription: AnyCancellable?
     let hotkey: GlobalShortcut
     let store: QuotaStore
     let overlay: OverlayController
@@ -98,11 +99,14 @@ struct ShortcutChoice: Codable, Equatable {
         launchEnabled = SMAppService.mainApp.status == .enabled
         if !store.demo { message = hotkey.register(shortcut) }
         applyAppearance()
+        languageSubscription = LanguageStore.shared.$text.sink { [weak self] text in
+            self?.window?.title = text.string("settings.title")
+        }
     }
     func show() {
         if window == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 430), styleMask: [.titled, .closable], backing: .buffered, defer: false)
-            window.title = "Codex Pulse 设置"; window.isReleasedWhenClosed = false
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 530), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            window.title = tr("settings.title"); window.isReleasedWhenClosed = false
             window.contentView = NSHostingView(rootView: PreferencesView(preferences: self, store: store, activityConnection: activityConnection))
             window.center(); self.window = window
         }
@@ -111,13 +115,13 @@ struct ShortcutChoice: Codable, Equatable {
     }
     func saveShortcut() { if !store.demo { message = hotkey.register(shortcut) } }
     func setLaunch(_ enabled: Bool) {
-        guard !store.demo else { message = "演示模式不注册开机启动"; return }
+        guard !store.demo else { message = tr("launch.demo"); return }
         do {
             if enabled { try SMAppService.mainApp.register() }
             else { try SMAppService.mainApp.unregister() }
             launchEnabled = SMAppService.mainApp.status == .enabled
-            message = SMAppService.mainApp.status == .requiresApproval ? "请在系统设置「登录项」中允许 Codex Pulse" : nil
-        } catch { launchEnabled = SMAppService.mainApp.status == .enabled; message = "开机启动未更改：\(error.localizedDescription)" }
+            message = SMAppService.mainApp.status == .requiresApproval ? tr("launch.approval") : nil
+        } catch { launchEnabled = SMAppService.mainApp.status == .enabled; message = tr("launch.failed", error.localizedDescription) }
     }
     func applyAppearance() {
         LocalDefaults.store.set(appearance, forKey: "appearance")
@@ -125,7 +129,7 @@ struct ShortcutChoice: Codable, Equatable {
     }
     func chooseExecutable() {
         let picker = NSOpenPanel()
-        picker.title = "选择 Codex 可执行文件"; picker.canChooseDirectories = false; picker.allowsMultipleSelection = false
+        picker.title = tr("codex.picker"); picker.canChooseDirectories = false; picker.allowsMultipleSelection = false
         guard picker.runModal() == .OK, let url = picker.url, FileManager.default.isExecutableFile(atPath: url.path) else { return }
         executablePath = url.path; LocalDefaults.store.set(url.path, forKey: "codexExecutable")
         store.suspend(); store.client.executable = QuotaClient.nativeExecutable(url); store.resume()
@@ -137,49 +141,58 @@ struct PreferencesView: View {
     @ObservedObject var store: QuotaStore
     @ObservedObject var activityConnection: ActivityConnection
     @ObservedObject private var appearance = AppearanceStore.shared
+    @ObservedObject private var language = LanguageStore.shared
     var body: some View {
         Form {
-            Picker("外观", selection: $preferences.appearance) {
-                Text("跟随 Codex").tag("codex"); Text("跟随系统").tag("system"); Text("浅色").tag("light"); Text("深色").tag("dark")
+            Picker(tr("language"), selection: Binding(get: { language.selection }, set: {
+                language.setSelection($0); preferences.message = nil
+            })) {
+                Text(tr("language.system")).tag(PulseLanguage.system)
+                Text("简体中文").tag(PulseLanguage.simplifiedChinese)
+                Text("English").tag(PulseLanguage.english)
+            }
+            Picker(tr("appearance"), selection: $preferences.appearance) {
+                Text(tr("appearance.codex")).tag("codex"); Text(tr("appearance.system")).tag("system"); Text(tr("appearance.light")).tag("light"); Text(tr("appearance.dark")).tag("dark")
             }.onChange(of: preferences.appearance) { _, _ in preferences.applyAppearance() }
             if preferences.appearance == "codex", appearance.codex == nil {
-                Text("Codex 外观配置暂不可用，当前跟随系统配色。")
+                Text(tr("appearance.unavailable"))
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Toggle("开机启动", isOn: Binding(get: { preferences.launchEnabled }, set: preferences.setLaunch))
-            Toggle("低额度提醒（20% / 10%）", isOn: Binding(get: { store.remindersEnabled }, set: store.enableReminders))
+            Toggle(tr("launch"), isOn: Binding(get: { preferences.launchEnabled }, set: preferences.setLaunch))
+            Toggle(tr("reminders"), isOn: Binding(get: { store.remindersEnabled }, set: store.enableReminders))
             if !store.demo {
-                Toggle("工作特效", isOn: Binding(get: { activityConnection.installed }, set: activityConnection.setEnabled))
+                Toggle(tr("activity.effect"), isOn: Binding(get: { activityConnection.installed }, set: activityConnection.setEnabled))
                     .disabled(activityConnection.checking)
                 HStack {
                     Text(activityConnection.status).font(.caption).foregroundStyle(.secondary)
                     Spacer()
                     if activityConnection.installed {
-                        Button("信任步骤") { activityConnection.showTrustSteps() }
-                        Button(activityConnection.checking ? "检查中…" : "检查连接") { activityConnection.refresh() }
+                        Button(tr("activity.steps")) { activityConnection.showTrustSteps() }
+                        Button(activityConnection.checking ? tr("activity.checking") : tr("activity.check")) { activityConnection.refresh() }
                             .disabled(activityConnection.checking)
                     }
                 }
             }
             HStack {
-                Text("快捷键").help("显示或隐藏胶囊")
-                Toggle("⌃", isOn: $preferences.shortcut.control).accessibilityLabel("Control 修饰键")
-                Toggle("⌥", isOn: $preferences.shortcut.option).accessibilityLabel("Option 修饰键")
-                Toggle("⇧", isOn: $preferences.shortcut.shift).accessibilityLabel("Shift 修饰键")
-                Toggle("⌘", isOn: $preferences.shortcut.command).accessibilityLabel("Command 修饰键")
-                Picker("按键", selection: $preferences.shortcut.key) {
+                Text(tr("shortcut")).help(tr("shortcut.hint"))
+                Toggle("⌃", isOn: $preferences.shortcut.control).toggleStyle(.checkbox).accessibilityLabel(tr("shortcut.control"))
+                Toggle("⌥", isOn: $preferences.shortcut.option).toggleStyle(.checkbox).accessibilityLabel(tr("shortcut.option"))
+                Toggle("⇧", isOn: $preferences.shortcut.shift).toggleStyle(.checkbox).accessibilityLabel(tr("shortcut.shift"))
+                Toggle("⌘", isOn: $preferences.shortcut.command).toggleStyle(.checkbox).accessibilityLabel(tr("shortcut.command"))
+                Picker(tr("shortcut.key"), selection: $preferences.shortcut.key) {
                     ForEach(ShortcutChoice.keyCodes.keys.sorted(), id: \.self) { Text($0).tag($0) }
                 }.labelsHidden().frame(width: 58)
             }
-            Button("应用快捷键") { preferences.saveShortcut() }
+            Button(tr("shortcut.apply")) { preferences.saveShortcut() }
             HStack {
-                Text("Codex 路径").foregroundStyle(.secondary)
-                Spacer(); Button("选择…") { preferences.chooseExecutable() }
+                Text(tr("codex.path")).foregroundStyle(.secondary)
+                Spacer(); Button(tr("codex.choose")) { preferences.chooseExecutable() }
             }
             if !preferences.executablePath.isEmpty { Text(preferences.executablePath).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
             if let message = preferences.message ?? store.reminderMessage { Text(message).font(.caption).foregroundStyle(.orange) }
-            Text("额度快照只保存在内存中。提醒去重记录保存在本机。通知仅在主动启用时申请权限。")
+            Text(tr("privacy.settings"))
                 .font(.caption).foregroundStyle(.secondary)
-        }.formStyle(.grouped).frame(width: 400).padding(8)
+        }.formStyle(.grouped).frame(width: 440).padding(8)
+            .environment(\.locale, language.text.locale)
     }
 }

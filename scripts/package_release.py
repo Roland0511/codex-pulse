@@ -142,8 +142,8 @@ def main():
     parser.add_argument("--notary-profile", help="已在 notarytool 钥匙串保存的配置名，不传密码")
     parser.add_argument("--keychain", help="可选签名及公证钥匙串路径")
     parser.add_argument("--architecture", choices=["arm64", "x86_64", "universal"], default="universal")
-    parser.add_argument("--version", default="0.1.0")
-    parser.add_argument("--build-number", default="2")
+    parser.add_argument("--version", default="0.1.1")
+    parser.add_argument("--build-number", default="3")
     args = parser.parse_args()
     if not re.fullmatch(r"\d+\.\d+\.\d+", args.version) or not re.fullmatch(r"[1-9]\d*", args.build_number):
         parser.error("version 必须为三段数字，build-number 必须为正整数")

@@ -54,9 +54,10 @@ private func snapshot(_ used: Double, account: String = "a", reset: Date? = samp
         #expect(QuotaText.percentage(0.4) == "<1%")
     }
     @Test func countdownNeverClaimsReset() {
-        #expect(QuotaText.countdown(sampleTime.addingTimeInterval(-1), now: sampleTime) == "重置时间已到")
-        #expect(QuotaText.countdown(nil, now: sampleTime) == "重置时间未知")
-        #expect(QuotaText.countdown(sampleTime.addingTimeInterval(1), now: sampleTime) == "1 分钟后重置")
+        let text = PulseText(language: .simplifiedChinese)
+        #expect(QuotaText.countdown(sampleTime.addingTimeInterval(-1), now: sampleTime, using: text) == "重置时间已到")
+        #expect(QuotaText.countdown(nil, now: sampleTime, using: text) == "重置时间未知")
+        #expect(QuotaText.countdown(sampleTime.addingTimeInterval(1), now: sampleTime, using: text) == "1 分钟后重置")
     }
     @Test func tiesUseEarlierResetThenStableID() {
         let a = QuotaWindow(bucketID: "a", slot: "primary", usedPercent: 40, durationMinutes: 30, resetsAt: sampleTime)

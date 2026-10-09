@@ -16,7 +16,7 @@ import Security
     public static func shellQuote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
     public var commands: Set<String> { Set(ActivityEvent.allCases.map { Self.shellQuote(helper.path) + " --event " + $0.rawValue }) }
     public var definition: [String: Any] {
-        ["description": "Codex Pulse 只读工作状态：不读取聊天记录，不输出或改变会话上下文。",
+        ["description": "Codex Pulse read-only work status. No chat history, session output, or session control.",
          "hooks": Dictionary(uniqueKeysWithValues: ActivityEvent.allCases.map { event in
             (event.rawValue, [["hooks": [["type": "command", "command": Self.shellQuote(helper.path) + " --event " + event.rawValue,
                                          "async": true, "timeout": 2]]]])

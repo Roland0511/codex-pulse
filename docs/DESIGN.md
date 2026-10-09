@@ -4,11 +4,19 @@
 
 用户于 2026-10-09 追加图钉固定、消耗流光与跟随 Codex 配色；这些条目作为冻结基准的授权扩展，尺寸和线条要求继续适用。
 
+## 中英文支持
+
+2026-10-10 用户追加开源及中英文支持。默认跟随系统：中文语言环境使用简体中文，其它语言回退 English；设置可显式选择「简体中文」或「English」，即时更新并保存，不修改系统或 Codex 语言。设置窗为 440 × 530 pt，原生选择器及紧凑修饰键复选框容纳英文标签；胶囊的冻结尺寸与动效保持原参数。
+
+语言唯一来源为 `Resources/Localization/en.json` 与 `zh-Hans.json`，经 `generate_localizations.py` 校验键及格式占位符、生成不可变 Swift 表；`LanguageStore` 统一驱动菜单、设置、胶囊、错误、通知和辅助功能文案。日期跟随当前产品语言、用户地区及本地时区，数字不改变业务含义。服务提供的额度桶名称原样保留；实际窗口时长使用本地化描述，未知不补成 0。英文紧凑倒计时使用 `Resets in 5h` 等短文案，完整辅助说明保留自然语言。
+
+安装画布提供中英双语引导，目标文件夹统一标为 `Applications`；原生文件及菜单操作仍由 Finder 管理。README 产品图只使用明确标注的合成示意，不公开真实账户截图。
+
 ## 应用图标与手动安装界面
 
 用户追加美化正式应用图标与 DMG。延续细线胶囊：深色圆角底、胶囊轮廓、青绿色额度段及单个光点，不使用百分比、账户状态或仿官方 Codex 标识。图标提供 16–1024 像素的完整 ICNS，较小尺寸作描边补偿；图稿随应用签名封装。
 
-DMG 使用浅色固定画布、原生应用和「应用程序」图标，中间细箭头表达安装方向，中文提示说明拖入和安装后弹出。Finder 负责选择、拖放、键盘复制与粘贴，不绘制伪按钮；除应用及目标文件夹外不放可见杂项。背景为 2× TIFF，窗口为 640 × 460 pt，图标 96 pt；下方保留余量以容纳 Finder 用户偏好启用的路径 / 状态栏。背景提示是补充，文件名称及系统键盘操作仍可独立使用。
+DMG 使用浅色固定画布、原生应用和 `Applications` 图标，中间细箭头表达安装方向，中英双语提示说明拖入和安装后弹出。Finder 负责选择、拖放、键盘复制与粘贴，不绘制伪按钮；除应用及目标文件夹外不放可见杂项。背景为 2× TIFF，窗口为 640 × 460 pt，图标 96 pt；下方保留余量以容纳 Finder 用户偏好启用的路径 / 状态栏。背景提示是补充，文件名称及系统键盘操作仍可独立使用。
 
 色板沿用 `design/v0.1/tokens.json`；安装布局唯一来源为 `design/distribution/layout.json`，由 `scripts/render_artwork.swift` 和 `scripts/dmg_settings.py` 共用。`scripts/artwork.py` 生成 ICNS / PNG / TIFF；`build_app.py` 嵌入图标并设置 Info.plist，`package_release.py` 生成 Finder 布局后重新签名公证。此追加不改变胶囊自身的冻结布局和动效。
 
@@ -118,6 +126,7 @@ DMG 使用浅色固定画布、原生应用和「应用程序」图标，中间�
 | Notifications | AlertPolicy + 系统通知 | V0.1-PLAN.md | 20%、10%，用户主动启用 | 周期与阈值测试、通知实际验收 |
 | Preferences | Preferences + 系统控件 | 本文 | 原生菜单、原生选择器 | 键盘与系统状态核对 |
 | Theme | AppearanceStore + Palette | CodexAppearance 外观白名单、本文 | 跟随 Codex、系统、浅色、深色 | 合成配置、原子替换测试、原生抽查 |
+| Locale | LanguageStore + PulseText | Resources/Localization/*.json | 跟随系统、简体中文、English | 目录一致性、格式测试、原生切换及重启 |
 | Distribution | artwork.py + dmg_settings.py | 冻结色板、distribution/layout.json | 正式 / 明示未公证候选 | ICNS 核对、真实 Finder 显示、容器及签名复核 |
 
 所有选择器、滚动条和文件选择窗使用 macOS 原生控件；日期用本地时区格式化。菜单「位置」提供无需拖动的替代路径。详情是非模态浮窗，鼠标打开不抢焦点，菜单主动打开提供键盘焦点；设置窗由用户主动打开时获得焦点。

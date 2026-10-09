@@ -21,7 +21,7 @@ import PulseCore
                 NSApp.terminate(nil); return
             }
         } catch {
-            fputs("Codex Pulse 无法建立单实例保护；为避免重复驻留，本次启动已退出。\n", stderr)
+            fputs(tr("error.instance"), stderr)
             NSApp.terminate(nil); return
         }
         DistributedNotificationCenter.default().addObserver(self, selector: #selector(showExisting),
@@ -29,6 +29,7 @@ import PulseCore
         NSApp.setActivationPolicy(.accessory)
         let demo = CommandLine.arguments.contains("--demo") || Bundle.main.object(forInfoDictionaryKey: "PulseDemoMode") as? Bool == true
         if demo { LocalDefaults.store = UserDefaults(suiteName: "dev.roland.codex-pulse.demo.preferences")! }
+        LanguageStore.shared.start()
         let preferred = LocalDefaults.store.string(forKey: "codexExecutable")
         let client = QuotaClient(executable: QuotaClient.discoverExecutable(preferred: preferred), inspectHooks: true)
         let scenarioIndex = CommandLine.arguments.firstIndex(of: "--demo-scenario")
@@ -45,7 +46,11 @@ import PulseCore
             if let message = self?.shortcut.watchEscape(expanded) { self?.preferences.message = message }
         }.store(in: &subscriptions)
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "capsule.lefthalf.filled", accessibilityDescription: "Codex Pulse 额度")
+        statusItem.button?.image = NSImage(systemSymbolName: "capsule.lefthalf.filled", accessibilityDescription: tr("menu.accessibility"))
+        LanguageStore.shared.$text.dropFirst().sink { [weak self] text in
+            self?.statusItem.button?.image?.accessibilityDescription = text.string("menu.accessibility")
+            self?.statusItem.button?.toolTip = text.string("menu.accessibility")
+        }.store(in: &subscriptions)
         let menu = NSMenu(); menu.delegate = self; statusItem.menu = menu
         // 原生主菜单提供键盘等效动作，菜单栏胶囊入口复用同一组处理器。
         let root = NSMenu(), appMenu = NSMenu()
@@ -78,24 +83,24 @@ import PulseCore
     @objc private func showExisting() { overlay?.show() }
     func menuWillOpen(_ menu: NSMenu) {
         menu.removeAllItems()
-        item(menu, overlay.visible ? "隐藏胶囊" : "显示胶囊", #selector(toggle), "")
-        item(menu, "展开额度详情", #selector(openDetails), "")
-        item(menu, store.refreshing ? "刷新中…" : "刷新额度", #selector(refresh), "r").isEnabled = !store.refreshing && !store.demo
+        item(menu, overlay.visible ? tr("menu.hide") : tr("menu.show"), #selector(toggle), "")
+        item(menu, tr("menu.details"), #selector(openDetails), "")
+        item(menu, store.refreshing ? tr("status.refreshing") : tr("menu.refresh"), #selector(refresh), "r").isEnabled = !store.refreshing && !store.demo
         menu.addItem(.separator())
         let position = NSMenu()
-        item(position, "移到屏幕中央", #selector(center), "")
-        item(position, "吸附左侧", #selector(left), "")
-        item(position, "吸附右侧", #selector(right), "")
-        let positionItem = NSMenuItem(title: "位置", action: nil, keyEquivalent: ""); positionItem.submenu = position; menu.addItem(positionItem)
-        item(menu, "低额度提醒", #selector(reminders), "").state = store.remindersEnabled ? .on : .off
-        item(menu, "开机启动", #selector(launchAtLogin), "").state = preferences.launchEnabled ? .on : .off
+        item(position, tr("menu.center"), #selector(center), "")
+        item(position, tr("menu.left"), #selector(left), "")
+        item(position, tr("menu.right"), #selector(right), "")
+        let positionItem = NSMenuItem(title: tr("menu.position"), action: nil, keyEquivalent: ""); positionItem.submenu = position; menu.addItem(positionItem)
+        item(menu, tr("reminders.menu"), #selector(reminders), "").state = store.remindersEnabled ? .on : .off
+        item(menu, tr("launch"), #selector(launchAtLogin), "").state = preferences.launchEnabled ? .on : .off
         if !store.demo, !preferences.activityConnection.verified {
-            item(menu, preferences.activityConnection.installed ? "工作特效：\(preferences.activityConnection.status)…" : "启用工作特效…", #selector(settings), "")
+            item(menu, preferences.activityConnection.installed ? tr("menu.activity", preferences.activityConnection.status) : tr("menu.enableActivity"), #selector(settings), "")
         }
-        item(menu, "设置…（\(shortcut.choice.label)）", #selector(settings), ",")
-        item(menu, "打开 Codex", #selector(openCodex), "")
+        item(menu, tr("menu.settings", shortcut.choice.label), #selector(settings), ",")
+        item(menu, tr("menu.openCodex"), #selector(openCodex), "")
         menu.addItem(.separator())
-        item(menu, "退出 Codex Pulse", #selector(quit), "q")
+        item(menu, tr("menu.quit"), #selector(quit), "q")
     }
     @discardableResult private func item(_ menu: NSMenu, _ title: String, _ action: Selector, _ key: String) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: key); item.target = self; menu.addItem(item); return item
@@ -117,6 +122,7 @@ import PulseCore
     @objc private func quit() { NSApp.terminate(nil) }
     func applicationWillTerminate(_ notification: Notification) {
         preferences?.activityConnection.stop(); store?.stop(); overlay?.stop(); shortcut?.stop(); AppearanceStore.shared.stop(); instanceLock.release()
+        LanguageStore.shared.stop()
         for observer in observers { NSWorkspace.shared.notificationCenter.removeObserver(observer); NotificationCenter.default.removeObserver(observer) }
         DistributedNotificationCenter.default().removeObserver(self)
     }

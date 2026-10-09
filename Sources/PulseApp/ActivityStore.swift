@@ -6,7 +6,8 @@ import PulseCore
 @MainActor final class ActivityStore: ObservableObject {
     @Published private(set) var isWorking = false
     @Published private(set) var hasReceivedEvent = false
-    @Published private(set) var message: String?
+    @Published private var messageKey: String?
+    var message: String? { messageKey.map { tr($0) } }
     private(set) var lastReceivedEvent: ActivityEvent?
     private var ledger = ActivityLedger()
     private var descriptor: Int32 = -1
@@ -31,8 +32,8 @@ import PulseCore
             descriptor = try ActivitySocket.listen(at: url)
             let source = DispatchSource.makeReadSource(fileDescriptor: descriptor, queue: .main)
             source.setEventHandler { [weak self] in MainActor.assumeIsolated { self?.drain() } }
-            self.source = source; source.resume(); message = nil
-        } catch { message = "工作状态连接不可用，仍可读取额度。" }
+            self.source = source; source.resume(); messageKey = nil
+        } catch { messageKey = "activity.listener.failed" }
     }
     private func drain() {
         guard descriptor >= 0 else { return }

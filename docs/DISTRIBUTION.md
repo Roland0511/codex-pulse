@@ -63,11 +63,11 @@ python3 -m venv .build/packaging
   --notary-profile "codex-pulse-notary"
 ```
 
-默认版本 `0.1.0`、构建号 `2`、通用架构 `arm64 + x86_64`，最低 macOS 14。可用 `--version`、`--build-number`、`--architecture` 指定；自定义钥匙串通过 `--keychain` 指定，该路径同时用于签名和公证。Intel 架构编译不等于 Intel 实机验收。
+默认版本 `0.1.1`、构建号 `3`、通用架构 `arm64 + x86_64`，最低 macOS 14。可用 `--version`、`--build-number`、`--architecture` 指定；自定义钥匙串通过 `--keychain` 指定，该路径同时用于签名和公证。Intel 架构编译不等于 Intel 实机验收。
 
 流程依次构建两个架构、合并应用与 helper、去除调试符号、验证有效 Developer ID、签名 helper 及应用（Hardened Runtime、安全时间戳），上传 ZIP 公证，将票据附到 `.app` 并验证 Gatekeeper；再生成带 Applications 快捷入口的 DMG，只读挂载并验证其中应用 / helper 的严格全架构签名、应用票据及 Gatekeeper，卸载后再为 DMG 签名 / 公证 / 附票并验证。最终 ZIP 从已附票的应用生成。
 
-完整 ICNS 在签名前写入应用 Resources，Info.plist 指向同一图标。原生矢量图稿复用冻结色板；Retina 背景及 Finder 图标位置共用布局参数。DMG 仅显示应用和「应用程序」快捷入口，安装提示直接置于背景；不依赖 Finder 自动排列，也不修改用户的全局显示偏好。构建依据 [dmgbuild 的设置说明](https://dmgbuild.readthedocs.io/en/latest/settings.html)。
+完整 ICNS 在签名前写入应用 Resources，Info.plist 指向同一图标。原生矢量图稿复用冻结色板；Retina 背景及 Finder 图标位置共用布局参数。DMG 仅显示应用和 `Applications` 快捷入口，中英双语安装提示直接置于背景；不依赖 Finder 自动排列，也不修改用户的全局显示偏好。构建依据 [dmgbuild 的设置说明](https://dmgbuild.readthedocs.io/en/latest/settings.html)。
 
 不向已签名的应用写入 FinderInfo 或自定义资源叉；图标通过应用 Resources 提供，扩展名是否显示遵循 Finder 偏好。此类元数据会使严格签名核验失败，参见 [Apple QA1940](https://developer.apple.com/library/archive/qa/qa1940/_index.html)。DMG 外层签名 / 公证成功不能替代包内应用的验证。
 
@@ -94,7 +94,7 @@ python3 -m venv .build/packaging
 
 ## 安装与首次使用
 
-打开正式 DMG，将 `Codex Pulse.app` 拖到右侧「应用程序」，弹出磁盘映像后从应用程序打开；升级前先退出旧实例。也可在 Finder 选择应用后按 `⌘C`，再按 `⇧⌘A` 打开应用程序文件夹，按 `⌘V` 安装。卸载可先在设置中关闭工作特效，再退出并将应用移到废纸篓；关闭仅移除 Pulse handlers，保留其它 hooks。
+打开正式 DMG，将 `Codex Pulse.app` 拖到右侧 `Applications`，弹出磁盘映像后从应用程序打开；升级前先退出旧实例。也可在 Finder 选择应用后按 `⌘C`，再按 `⇧⌘A` 打开应用程序文件夹，按 `⌘V` 安装。卸载可先在设置中关闭工作特效，再退出并将应用移到废纸篓；关闭仅移除 Pulse handlers，保留其它 hooks。
 
 使用者需要已安装并登录的官方 Codex。应用优先发现官方桌面包内 CLI 和常见安装路径；若未找到，可在设置中选择 CLI 可执行文件。无需 Xcode、Python 或源码。
 
