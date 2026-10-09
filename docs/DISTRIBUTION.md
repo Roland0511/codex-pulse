@@ -1,14 +1,16 @@
 # macOS 手动分发
 
-状态：2026-10-09 v0.1.0（构建 1）正式手动分发包完成。应用及 DMG 均通过 Developer ID 签名、Apple 公证、票据及 Gatekeeper；最终 ZIP 解压、DMG 只读挂载和 SHA-256 独立复核通过。支持 arm64 / x86_64，最低 macOS 14；Intel 和旧系统仅完成编译，未做实机运行验收。
+状态：2026-10-10 v0.1.0（构建 2）正式手动分发包完成，包含完整应用图标和中文拖放安装界面，已在真实 Finder 中确认。应用及 DMG 均通过 Developer ID 签名、Apple 公证、票据及 Gatekeeper；最终 ZIP 解压、DMG 包内应用只读核验和 SHA-256 独立复核通过。支持 arm64 / x86_64，最低 macOS 14；Intel 和旧系统仅完成编译，未做实机运行验收。
 
-本次正式产物位于 `dist/releases/0.1.0-1-20261009-234233/`：
+本次正式产物位于 `dist/releases/0.1.0-2-20261010-001426/`：
 
 - `CodexPulse-0.1.0-universal-notarized.dmg`：优先使用的手动安装包。
 - `CodexPulse-0.1.0-universal-notarized.zip`：已签名并附票的应用。
 - `SHA256SUMS.txt`、`release.json`：校验值及构建来源。
 
-分发上述最终 DMG 或 ZIP 即可；`notary-upload.zip` 是附票前的公证上传中间文件，不作为交付包。原生源码与打包流程来自 `eb7bcc3`，打包期间仅更新相关文档，因此清单的 `sourceDirty=true` 如实保留；未修改最终包以掩盖该状态。
+分发上述最终 DMG 或 ZIP 即可；`notary-upload.zip` 是附票前的公证上传中间文件，不作为交付包。构建来源为 `290e09b`，开始打包时工作区干净，清单记录 `sourceDirty=false`；随后仅更新交付文档。
+
+构建 1 保留为历史交付。首份美化构建 `0.1.0-2-20261010-000817` 虽获 Apple Accepted，但包内应用严格签名失败，已标记 `WITHDRAWN.txt`，不得分发；本次修复后的独立容器核验已通过。详细原因和验证边界见 [验证记录](VERIFICATION.md)。
 
 ## 签名准备
 

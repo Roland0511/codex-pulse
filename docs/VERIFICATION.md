@@ -310,3 +310,15 @@ helper 追加检查：沙箱内一次严格检查返回 invalid signature；相�
 真实 Finder 复核：首轮 640 × 400 窗口被用户已有路径栏 / 状态栏占据空间，底部提示裁切，不计通过。调整为 640 × 460 并保留底部余量后，应用图标、原生文件夹、中文拖放说明、箭头及完整底部提示正常显示，背景下文字清晰；窗口内只有两个可见项目，右方向键实际将选择从应用移到应用程序。未更改 Finder 全局偏好，未实际安装或替换旧版；截图不能证明拖动安装已经完成。准备候选明确显示未公证，正式 build 2 的签名 / 公证及最终容器另验。
 
 首份美化正式构建 `0.1.0-2-20261010-000817` 的应用与 DMG 均获得公证 Accepted、外层 Gatekeeper 通过，但独立只读挂载检查发现包内应用严格签名失败，未交付。原应用及 ZIP 核验通过；只有 DMG 内应用根目录新增 `com.apple.FinderInfo`，来自安装设置 `hide_extensions` 的 SetFile 操作。已取消该元数据写入，并在 DMG 上传前加入真实挂载下的 helper / bundle 全架构严格检查、附票及 Gatekeeper 验证，任一失败即中止。失败构建保留本地 `WITHDRAWN.txt`，不改写 Apple 的 Accepted 结果，也不以其冒充可安装成品。
+
+### 安装界面美化正式交付（2026-10-10）
+
+修复后的正式目录为 `dist/releases/0.1.0-2-20261010-001426/`，版本 0.1.0 / build 2。构建开始时为干净的 `290e09bb5051249ca0283ee28bdba31503c3b5c2`，`sourceDirty=false`；后续只更新相关文档。应用及 helper 的 arm64 / x86_64 均为 Developer ID、Hardened Runtime 和安全时间戳签名，应用与 DMG 两次真实公证均为 Accepted，附票及 Gatekeeper 通过。本轮签名与公证复用了已授权私钥 / profile，无需再次手动输入。
+
+独立技术复核全部通过，报告为本机 `local-data/installer-release-verification.json`：原应用、最终 ZIP 解压及最终 DMG 只读挂载下的应用均通过严格全架构签名、票据与 Gatekeeper；主程序、helper、Info.plist 和图标在三个位置内容一致。完整 ICNS 的十种表示尺寸正确；卷图标与应用图标一致，背景为 1280 × 920 / 144 DPI，Finder 窗口 640 × 460、图标 96 pt，两个项目位置与唯一布局源一致，安装入口指向 `/Applications`。校验值与清单一致，技术检查的临时挂载均已卸载。
+
+最终 DMG 的 SHA-256 为 `a9a853dd6e1ef22a3da4ba98981dc43323cfcb74541bff238c04f3f9a9ecdcdc`，ZIP 为 `3f0fef091b4db56b054a70fde67f59c9a90d6d500512ea9dfdbd2469afdaf9a4`。
+
+DMG 外层追加核验中，沙箱内 codesign / stapler 曾返回签名或读取错误；使用正式构建的执行环境和绝对路径重验，两项均通过，文件 SHA-256 仍与清单相同。该受限执行结果保留为环境差异，不以失败的沙箱输出代替正式验证结论。
+
+真实 Finder 另行打开了上述最终 DMG：加载完成后胶囊图标与原生应用程序文件夹正常，中文说明、箭头及底部提示完整显示，只有两个可见项目；保留用户原有路径栏 / 状态栏偏好。最终窗口留给用户手动安装，因此其可见卷挂载有意保留；未实际拖放安装或替换旧应用，不将截图视作这些操作的证明。UI strict audit 再次为 0 问题；DESIGN lint 0 错误 / 1 项原有 YAML 格式提示。65 项 Swift 和 7 项 Python 回归结果继续有效，未修改原生业务逻辑；Intel / macOS 14 实机、CI、通知 / 登录项启用后及自然重置仍未新增验收。
