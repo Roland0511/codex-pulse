@@ -1,0 +1,17 @@
+{
+  "profile": "product-admin",
+  "sourceRoots": ["Sources/PulseApp"],
+  "locale": "zh-CN",
+  "canonicalMap": "docs/DESIGN.md",
+  "requiredCapabilities": [],
+  "requiredCommands": ["unit", "build", "tokens"],
+  "commands": {
+    "unit": "swift test",
+    "build": "python3 scripts/build_app.py",
+    "tokens": "python3 scripts/generate_tokens.py --check"
+  },
+  "evidence": {
+    "failurePaths": "Tests/PulseAppTests/StoreTests.swift",
+    "nativeAcceptance": "docs/VERIFICATION.md"
+  }
+}

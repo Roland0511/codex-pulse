@@ -10,3 +10,8 @@ xcuserdata/
 !.env.example
 local-data/
 private-evidence/
+__pycache__/
+*.p12
+*.pfx
+*.p8
+*.key
