@@ -6,10 +6,10 @@
 
 ## 当前状态
 
-- 阶段：2026-10-09 v0.1 本地交付完成，65 项 Swift 回归通过；12/12 hooks 已受信任，真实工作 / Stop / 审批等待及恢复通过，设置页额度核对、连续 600 秒空闲、全屏和减少动态效果已验收。流光范围、渐隐及水平对齐已原生抽查。用户选择通知 / 登录项保持关闭，并同意进入提交及正式分发阶段；启用后的系统验收和正式账户自然重置观察留到后续，未计为通过。
+- 阶段：2026-10-09 v0.1 本地交付及追加正式分发完成，65 项 Swift 回归通过；12/12 hooks 已受信任，真实工作 / Stop / 审批等待及恢复通过，设置页额度核对、连续 600 秒空闲、全屏和减少动态效果已验收。流光范围、渐隐及水平对齐已原生抽查。用户选择通知 / 登录项保持关闭；启用后的系统验收和正式账户自然重置观察留到后续，未计为通过。
 - 平台：macOS 14+；本次已在 Apple Silicon / macOS 26.6.2 验证，未验证 Intel 或所有历史系统。
 - 实现：SwiftUI + AppKit（NSPanel），通过官方本地 Codex App Server 读取额度。
-- 源码已提交并推送 `origin/main`。通用架构 DMG / ZIP 准备候选的容器、签名和校验值已验证；Developer ID 正式签名 / 公证仍等待本机证书私钥及公证配置，尚未生成正式包。验证状态见 [验证记录](docs/VERIFICATION.md)。
+- 源码已提交并推送 `origin/main`。v0.1.0（构建 1）通用架构 DMG / ZIP 已通过 Developer ID 签名、Apple 公证、票据及 Gatekeeper；最终 ZIP 解压和 DMG 只读挂载复核通过，可手动分发安装。安装及重复打包见 [手动分发说明](docs/DISTRIBUTION.md)，验证范围见 [验证记录](docs/VERIFICATION.md)。
 
 ## 构建与运行
 
@@ -22,7 +22,7 @@ python3 scripts/build_app.py
 open "dist/Codex Pulse.app"
 ```
 
-默认构建生成 `dist/Codex Pulse.app`，使用本机架构和 ad-hoc 签名；这不是正式分发包。旧构建会保留在 `dist/previous-*.app`。构建结果与本机证据已被 Git 忽略。Developer ID 正式签名、公证、通用架构 DMG / ZIP 流程见 [手动分发说明](docs/DISTRIBUTION.md)；当前仍待本机证书及公证配置。
+默认构建生成 `dist/Codex Pulse.app`，使用本机架构和 ad-hoc 签名；这不是正式分发包。旧构建会保留在 `dist/previous-*.app`。构建结果与本机证据已被 Git 忽略。Developer ID 正式签名、公证、通用架构 DMG / ZIP 流程见 [手动分发说明](docs/DISTRIBUTION.md)。
 
 若找不到 `codex`，从菜单栏打开设置，选择官方 CLI 可执行文件。本地开发构建会保存本机 CLI 路径提示，便携 / 正式分发构建不会携带该路径；应用优先解析官方安装包内的原生二进制，减少 Node 包装进程开销。
 

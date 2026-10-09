@@ -1,12 +1,22 @@
 # macOS 手动分发
 
-状态：2026-10-09 用户已授权提交 / 推送并制作 Developer ID 正式分发包。源码已推送；正式签名仍等待本机可用证书及公证配置。准备候选不等于正式包。
+状态：2026-10-09 v0.1.0（构建 1）正式手动分发包完成。应用及 DMG 均通过 Developer ID 签名、Apple 公证、票据及 Gatekeeper；最终 ZIP 解压、DMG 只读挂载和 SHA-256 独立复核通过。支持 arm64 / x86_64，最低 macOS 14；Intel 和旧系统仅完成编译，未做实机运行验收。
+
+本次正式产物位于 `dist/releases/0.1.0-1-20261009-234233/`：
+
+- `CodexPulse-0.1.0-universal-notarized.dmg`：优先使用的手动安装包。
+- `CodexPulse-0.1.0-universal-notarized.zip`：已签名并附票的应用。
+- `SHA256SUMS.txt`、`release.json`：校验值及构建来源。
+
+分发上述最终 DMG 或 ZIP 即可；`notary-upload.zip` 是附票前的公证上传中间文件，不作为交付包。原生源码与打包流程来自 `eb7bcc3`，打包期间仅更新相关文档，因此清单的 `sourceDirty=true` 如实保留；未修改最终包以掩盖该状态。
 
 ## 签名准备
 
 需要有效的 **Developer ID Application** 证书及对应私钥。Apple Development、Apple Distribution、单独的 `.cer` 或 Apple ID 邮箱均不能替代这一签名身份。
 
-本机 Xcode 已登录用户提供的开发者账户；团队证书管理中现有 Developer ID Application 显示 **Not in Keychain**，创建菜单不可用。经沙箱外 `security find-identity -v -p codesigning` 核对为 0 个有效身份。可以在原签名 Mac 的“钥匙串访问 → 我的证书”导出包含私钥的 `.p12`，在本机登录钥匙串中导入；若原私钥不可恢复，请由团队 Account Holder 配置新证书。本任务没有撤销或新建证书，不导出私钥。
+首次核对时，本机 Xcode 的团队证书显示 **Not in Keychain**，创建菜单不可用，钥匙串为 0 个有效身份。用户随后自行导入含私钥的证书；复核已有 1 个有效 Developer ID Application 身份，原证书缺失问题已解除。本任务没有撤销或新建证书，不导出私钥。
+
+其它构建机器若缺少证书，可在原签名 Mac 的“钥匙串访问 → 我的证书”导出包含私钥的 `.p12`，在目标机器的登录钥匙串中导入；若原私钥不可恢复，请由团队 Account Holder 配置新证书。
 
 导入完成后，在自己的终端核对：
 
@@ -27,6 +37,14 @@ xcrun notarytool store-credentials "codex-pulse-notary" \
 ```
 
 也可使用已配置的 notarytool profile，或按 Apple 文档配置 App Store Connect API key。构建脚本只接收 profile 名称，交由官方工具从钥匙串读取，不读取或保存密码。现有 Xcode 登录不等于已经配置 notarytool profile。
+
+首次使用私钥时，macOS 可能为 helper、应用和 DMG 的 codesign 操作弹出钥匙串授权。保存私钥访问规则时的 `kcproxy` 管理员提示用于修改系统钥匙串，公证 profile 则用于向 Apple 服务认证，二者分别处理。由用户在系统窗口输入本机密码；电脑操作工具不能访问 SecurityAgent，不将密码发送到聊天或脚本。
+
+## 重复打包与自动化
+
+已保存的 notarytool profile 可供后续公证复用，本次应用与 DMG 的两次真实提交均成功。避免重复签名授权，需要让目标私钥信任系统 `/usr/bin/codesign`；只为该私钥新增此工具，保留原有规则，不选择允许所有应用。修改系统钥匙串规则时仍可能要求一次管理员确认。本机已按用户明确授权完成该设置；重启钥匙串访问后核对新增项持久保留，连续两次临时副本 Developer ID 签名及严格全架构验证通过，无交互输入。完整记录见 `VERIFICATION.md`。
+
+钥匙串解锁状态及进程执行上下文也影响签名；GUI 会话中的验证不能证明退出登录、SSH 或 CI 均可直接使用。后续配置 CI 时宜使用独立构建钥匙串及 CI 的秘密存储，在任务中定向导入和授权签名身份；不对整个登录 / 系统钥匙串批量放宽 ACL 或分区规则，也不把凭据写入仓库或普通日志。参见 [Apple 对签名授权及无 GUI 环境的说明](https://developer.apple.com/forums/thread/712005)。
 
 ## 正式打包
 
