@@ -24,3 +24,6 @@ __pycache__/
 *.provisionprofile
 *.bundle
 *.log
+
+# Local static-audit output may include developer paths.
+/premium-audit.json

@@ -332,3 +332,5 @@ DMG 外层追加核验中，沙箱内 codesign / stapler 曾返回签名或读�
 - 发布：历史身份脱敏、最终签名包、匿名公开访问及远端 CI 仍待完成，结果分别追加。
 
 公开前复核：全部 8 个 main 提交已使用 GitHub noreply 身份；全新远端私有克隆含 88 个文件、140 个 blob，Gitleaks 及私钥 / 个人路径 / 邮箱复查通过。首轮 GitHub macOS 15 CI 使用 Swift 6.1.2，在设置页 actor 方法引用转换处发生编译器 IRGen 崩溃；改用显式闭包保持行为，继续复验，首轮失败未计通过。
+
+显式闭包修正后的 GitHub macOS 15 / Swift 6.1.2 检查通过：Swift 回归、Python 回归、tokens / 中英词表漂移检查、便携 Release 构建均成功；本机 Swift 6.4 同一回归再次通过。正式重建将从此兼容源码及干净工作树出发。
