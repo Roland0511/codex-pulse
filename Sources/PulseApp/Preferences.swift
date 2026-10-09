@@ -158,10 +158,10 @@ struct PreferencesView: View {
                 Text(tr("appearance.unavailable"))
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Toggle(tr("launch"), isOn: Binding(get: { preferences.launchEnabled }, set: preferences.setLaunch))
-            Toggle(tr("reminders"), isOn: Binding(get: { store.remindersEnabled }, set: store.enableReminders))
+            Toggle(tr("launch"), isOn: Binding(get: { preferences.launchEnabled }, set: { preferences.setLaunch($0) }))
+            Toggle(tr("reminders"), isOn: Binding(get: { store.remindersEnabled }, set: { store.enableReminders($0) }))
             if !store.demo {
-                Toggle(tr("activity.effect"), isOn: Binding(get: { activityConnection.installed }, set: activityConnection.setEnabled))
+                Toggle(tr("activity.effect"), isOn: Binding(get: { activityConnection.installed }, set: { activityConnection.setEnabled($0) }))
                     .disabled(activityConnection.checking)
                 HStack {
                     Text(activityConnection.status).font(.caption).foregroundStyle(.secondary)
