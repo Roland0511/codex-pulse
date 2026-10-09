@@ -22,7 +22,7 @@ python3 scripts/build_app.py
 open "dist/Codex Pulse.app"
 ```
 
-默认构建生成 `dist/Codex Pulse.app`，使用本机架构和 ad-hoc 签名；这不是正式分发包。旧构建会保留在 `dist/previous-*.app`。构建结果与本机证据已被 Git 忽略。Developer ID 正式签名、公证、通用架构 DMG / ZIP 流程见 [手动分发说明](docs/DISTRIBUTION.md)。
+默认构建生成带完整应用图标的 `dist/Codex Pulse.app`，使用本机架构和 ad-hoc 签名；这不是正式分发包。旧构建会保留在 `dist/previous-*.app`。构建结果与本机证据已被 Git 忽略。Developer ID 正式签名、公证、带安装背景和拖放布局的通用架构 DMG / ZIP 流程见 [手动分发说明](docs/DISTRIBUTION.md)。
 
 若找不到 `codex`，从菜单栏打开设置，选择官方 CLI 可执行文件。本地开发构建会保存本机 CLI 路径提示，便携 / 正式分发构建不会携带该路径；应用优先解析官方安装包内的原生二进制，减少 Node 包装进程开销。
 

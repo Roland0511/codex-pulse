@@ -4,6 +4,14 @@
 
 用户于 2026-10-09 追加图钉固定、消耗流光与跟随 Codex 配色；这些条目作为冻结基准的授权扩展，尺寸和线条要求继续适用。
 
+## 应用图标与手动安装界面
+
+用户追加美化正式应用图标与 DMG。延续细线胶囊：深色圆角底、胶囊轮廓、青绿色额度段及单个光点，不使用百分比、账户状态或仿官方 Codex 标识。图标提供 16–1024 像素的完整 ICNS，较小尺寸作描边补偿；图稿随应用签名封装。
+
+DMG 使用浅色固定画布、原生应用和「应用程序」图标，中间细箭头表达安装方向，中文提示说明拖入和安装后弹出。Finder 负责选择、拖放、键盘复制与粘贴，不绘制伪按钮；除应用及目标文件夹外不放可见杂项。背景为 2× TIFF，窗口为 640 × 460 pt，图标 96 pt；下方保留余量以容纳 Finder 用户偏好启用的路径 / 状态栏。背景提示是补充，文件名称及系统键盘操作仍可独立使用。
+
+色板沿用 `design/v0.1/tokens.json`；安装布局唯一来源为 `design/distribution/layout.json`，由 `scripts/render_artwork.swift` 和 `scripts/dmg_settings.py` 共用。`scripts/artwork.py` 生成 ICNS / PNG / TIFF；`build_app.py` 嵌入图标并设置 Info.plist，`package_release.py` 生成 Finder 布局后重新签名公证。此追加不改变胶囊自身的冻结布局和动效。
+
 ## 已确认样式（2026-10-08）
 
 - 采用「细线胶囊」作为第一版样式基准。
@@ -110,6 +118,7 @@
 | Notifications | AlertPolicy + 系统通知 | V0.1-PLAN.md | 20%、10%，用户主动启用 | 周期与阈值测试、通知实际验收 |
 | Preferences | Preferences + 系统控件 | 本文 | 原生菜单、原生选择器 | 键盘与系统状态核对 |
 | Theme | AppearanceStore + Palette | CodexAppearance 外观白名单、本文 | 跟随 Codex、系统、浅色、深色 | 合成配置、原子替换测试、原生抽查 |
+| Distribution | artwork.py + dmg_settings.py | 冻结色板、distribution/layout.json | 正式 / 明示未公证候选 | ICNS 核对、真实 Finder 显示、容器及签名复核 |
 
 所有选择器、滚动条和文件选择窗使用 macOS 原生控件；日期用本地时区格式化。菜单「位置」提供无需拖动的替代路径。详情是非模态浮窗，鼠标打开不抢焦点，菜单主动打开提供键盘焦点；设置窗由用户主动打开时获得焦点。
 

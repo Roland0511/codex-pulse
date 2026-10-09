@@ -48,15 +48,24 @@ xcrun notarytool store-credentials "codex-pulse-notary" \
 
 ## 正式打包
 
+源码构建仍使用 Python 标准库和本机 Swift / AppKit。制作带 Finder 背景及布局的 DMG 另需固定版本 `dmgbuild`，安装到独立构建环境，不修改系统 Python：
+
 ```sh
-python3 scripts/package_release.py \
+python3 -m venv .build/packaging
+.build/packaging/bin/python -m pip install -r scripts/requirements-packaging.txt
+```
+
+```sh
+.build/packaging/bin/python scripts/package_release.py \
   --identity "Developer ID Application: YOUR_NAME (YOUR_TEAM_ID)" \
   --notary-profile "codex-pulse-notary"
 ```
 
-默认版本 `0.1.0`、构建号 `1`、通用架构 `arm64 + x86_64`，最低 macOS 14。可用 `--version`、`--build-number`、`--architecture` 指定；自定义钥匙串通过 `--keychain` 指定，该路径同时用于签名和公证。Intel 架构编译不等于 Intel 实机验收。
+默认版本 `0.1.0`、构建号 `2`、通用架构 `arm64 + x86_64`，最低 macOS 14。可用 `--version`、`--build-number`、`--architecture` 指定；自定义钥匙串通过 `--keychain` 指定，该路径同时用于签名和公证。Intel 架构编译不等于 Intel 实机验收。
 
 流程依次构建两个架构、合并应用与 helper、去除调试符号、验证有效 Developer ID、签名 helper 及应用（Hardened Runtime、安全时间戳），上传 ZIP 公证，将票据附到 `.app` 并验证 Gatekeeper；再生成带 Applications 快捷入口的 DMG，为 DMG 签名 / 公证 / 附票并验证。最终 ZIP 从已附票的应用生成。
+
+完整 ICNS 在签名前写入应用 Resources，Info.plist 指向同一图标。原生矢量图稿复用冻结色板；Retina 背景及 Finder 图标位置共用布局参数。DMG 仅显示应用和「应用程序」快捷入口，安装提示直接置于背景；不依赖 Finder 自动排列，也不修改用户的全局显示偏好。构建依据 [dmgbuild 的设置说明](https://dmgbuild.readthedocs.io/en/latest/settings.html)。
 
 输出在独立的 `dist/releases/版本-构建号-时间/`，保留旧产物，不替换当前驻留的本地应用、不安装、不改写 hooks 或偏好。交付内容为：
 
@@ -74,14 +83,14 @@ python3 scripts/package_release.py \
 证书尚未就绪时，可先验证便携构建和容器结构：
 
 ```sh
-python3 scripts/package_release.py --prepare-only
+.build/packaging/bin/python scripts/package_release.py --prepare-only
 ```
 
 产物文件名带 `candidate`，清单明确 `notarized=false`，使用 ad-hoc 签名；不用于正式分发。此模式不访问公证凭据、不上传 Apple，也不绕过 Gatekeeper。分发构建不嵌入开发机器的 CLI 路径、账户数据或偏好。
 
 ## 安装与首次使用
 
-打开正式 DMG，将 `Codex Pulse.app` 拖到 Applications，弹出磁盘映像后从应用程序打开；升级前先退出旧实例。卸载可先在设置中关闭工作特效，再退出并将应用移到废纸篓；关闭仅移除 Pulse handlers，保留其它 hooks。
+打开正式 DMG，将 `Codex Pulse.app` 拖到右侧「应用程序」，弹出磁盘映像后从应用程序打开；升级前先退出旧实例。也可在 Finder 选择应用后按 `⌘C`，再按 `⇧⌘A` 打开应用程序文件夹，按 `⌘V` 安装。卸载可先在设置中关闭工作特效，再退出并将应用移到废纸篓；关闭仅移除 Pulse handlers，保留其它 hooks。
 
 使用者需要已安装并登录的官方 Codex。应用优先发现官方桌面包内 CLI 和常见安装路径；若未找到，可在设置中选择 CLI 可执行文件。无需 Xcode、Python 或源码。
 

@@ -3,6 +3,7 @@
 import argparse
 import datetime
 import hashlib
+import importlib.util
 import json
 import pathlib
 import plistlib
@@ -11,6 +12,7 @@ import subprocess
 import sys
 
 from build_app import sign, signing_identity
+from artwork import generate as generate_artwork
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -48,6 +50,11 @@ def package(args):
         raise ValueError("正式分发必须指定 --identity 和 --notary-profile；准备候选请明确使用 --prepare-only")
     if args.prepare_only and (args.identity or args.notary_profile or args.keychain):
         raise ValueError("准备候选不会使用签名 / 公证凭据，不接受这些参数")
+    if importlib.util.find_spec("dmgbuild") is None:
+        raise ValueError("缺少 DMG 构建依赖。请按 docs/DISTRIBUTION.md 创建独立构建环境并安装 scripts/requirements-packaging.txt。")
+    # 在任何构建或上传前记录源码状态，避免中途修改文档影响来源判定。
+    source_commit = run("git", "rev-parse", "HEAD", capture=True).strip()
+    source_dirty = bool(run("git", "status", "--porcelain", capture=True).strip())
     label = "candidate" if args.prepare_only else "notarized"
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     folder = ROOT / "dist/releases" / (args.version + "-" + args.build_number + "-" + stamp)
@@ -61,10 +68,15 @@ def package(args):
         build_command += ["--keychain", args.keychain]
     run(*build_command)
     app = folder / "Codex Pulse.app"
+    artwork = folder / "artwork"
+    if args.prepare_only:
+        generate_artwork(artwork, candidate=True)
     with (app / "Contents/Info.plist").open("rb") as file:
         info = plistlib.load(file)
     if "PulseCodexExecutable" in info or info.get("PulseDemoMode"):
         raise ValueError("分发应用不得携带本机 CLI 路径或演示标记")
+    if info.get("CFBundleIconFile") != "AppIcon" or not (app / "Contents/Resources/AppIcon.icns").is_file():
+        raise ValueError("分发应用缺少正式图标")
     binary = app / "Contents/MacOS/CodexPulse"
     helper = app / "Contents/MacOS/PulseActivityHook"
     app_archs = set(run("lipo", "-archs", binary, capture=True).split())
@@ -83,13 +95,11 @@ def package(args):
         run("spctl", "--assess", "--type", "execute", "--verbose=2", app)
     zip_path = folder / (base + "-" + label + ".zip")
     archive(app, zip_path)
-    contents = folder / "image-contents"
-    contents.mkdir()
-    run("ditto", app, contents / app.name)
-    (contents / "Applications").symlink_to("/Applications", target_is_directory=True)
-    (contents / "安装说明.txt").write_text("将 Codex Pulse.app 拖到 Applications 后弹出磁盘映像，再从应用程序打开。\n需要 macOS 14+ 及已安装并登录的官方 Codex。工作特效在设置中主动启用并到 Codex /hooks 信任；提醒及开机启动默认关闭。\n" + ("此为未公证的准备候选，不用于正式分发。\n" if args.prepare_only else "本包已通过 Developer ID 签名及 Apple 公证。\n"))
     dmg = folder / (base + "-" + label + ".dmg")
-    run("hdiutil", "create", "-volname", "Codex Pulse", "-srcfolder", contents, "-format", "UDZO", "-ov", dmg)
+    run(sys.executable, "-m", "dmgbuild", "-s", ROOT / "scripts/dmg_settings.py",
+        "-D", "app=" + str(app), "-D", "artwork=" + str(artwork),
+        "-D", "layout=" + str(ROOT / "design/distribution/layout.json"),
+        "Codex Pulse", dmg)
     if not args.prepare_only:
         sign(dmg, signing_identity(args.identity, args.keychain), args.keychain, hardened=False)
         submissions["dmg"] = notarize(dmg, dmg, authentication, folder, "dmg")
@@ -98,8 +108,7 @@ def package(args):
     (folder / "SHA256SUMS.txt").write_text("".join(digest + "  " + name + "\n" for name, digest in checksums.items()))
     manifest = {"version": args.version, "build": args.build_number, "architectures": sorted(app_archs),
                 "status": label, "notarized": not args.prepare_only, "submissions": submissions, "sha256": checksums,
-                "sourceCommit": run("git", "rev-parse", "HEAD", capture=True).strip(),
-                "sourceDirty": bool(run("git", "status", "--porcelain", capture=True).strip())}
+                "sourceCommit": source_commit, "sourceDirty": source_dirty}
     (folder / "release.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print("分发目录：", folder)
     print("状态：", "准备候选，ad-hoc / 未公证，不是正式分发包" if args.prepare_only else "Developer ID / 公证 / 票据 / Gatekeeper 均通过")
@@ -113,7 +122,7 @@ def main():
     parser.add_argument("--keychain", help="可选签名及公证钥匙串路径")
     parser.add_argument("--architecture", choices=["arm64", "x86_64", "universal"], default="universal")
     parser.add_argument("--version", default="0.1.0")
-    parser.add_argument("--build-number", default="1")
+    parser.add_argument("--build-number", default="2")
     args = parser.parse_args()
     if not re.fullmatch(r"\d+\.\d+\.\d+", args.version) or not re.fullmatch(r"[1-9]\d*", args.build_number):
         parser.error("version 必须为三段数字，build-number 必须为正整数")

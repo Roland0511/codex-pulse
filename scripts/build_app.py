@@ -9,6 +9,8 @@ import re
 import shutil
 import subprocess
 
+from artwork import generate as generate_artwork
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
@@ -55,6 +57,10 @@ def build(args):
     stage = dist / ("stage-" + stamp + ".app")
     macos = stage / "Contents/MacOS"
     macos.mkdir(parents=True)
+    artwork = generate_artwork(dist / "artwork")
+    resources = stage / "Contents/Resources"
+    resources.mkdir()
+    shutil.copy2(artwork / "AppIcon.icns", resources / "AppIcon.icns")
     for name in ("CodexPulse", "PulseActivityHook"):
         target = macos / name
         if len(bins) == 1:
@@ -67,6 +73,7 @@ def build(args):
     info = {
         "CFBundleExecutable": "CodexPulse", "CFBundleIdentifier": "dev.roland.codex-pulse",
         "CFBundleName": "Codex Pulse", "CFBundleDisplayName": "Codex Pulse",
+        "CFBundleIconFile": "AppIcon",
         "CFBundlePackageType": "APPL", "CFBundleShortVersionString": args.version, "CFBundleVersion": args.build_number,
         "LSMinimumSystemVersion": "14.0", "LSUIElement": True,
         "NSPrincipalClass": "NSApplication", "NSHighResolutionCapable": True,
@@ -94,7 +101,7 @@ def main():
     parser.add_argument("--portable", action="store_true", help="不写入本机 CLI 路径；正式签名时自动生效")
     parser.add_argument("--output-dir", type=pathlib.Path, default=ROOT / "dist")
     parser.add_argument("--version", default="0.1.0")
-    parser.add_argument("--build-number", default="1")
+    parser.add_argument("--build-number", default="2")
     args = parser.parse_args()
     if not re.fullmatch(r"\d+\.\d+\.\d+", args.version) or not re.fullmatch(r"[1-9]\d*", args.build_number):
         parser.error("version 必须为三段数字，build-number 必须为正整数")

@@ -1,0 +1,9 @@
+{
+  "window": {"width": 640, "height": 460},
+  "iconSize": 96,
+  "textSize": 13,
+  "appPosition": [160, 210],
+  "destinationPosition": [480, 210],
+  "destinationName": "应用程序",
+  "icon": {"canvas": 1024, "inset": 96, "radius": 184}
+}
