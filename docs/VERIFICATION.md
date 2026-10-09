@@ -308,3 +308,5 @@ helper 追加检查：沙箱内一次严格检查返回 invalid signature；相�
 预览技术验证：7 项 Python 回归通过；49 Core / 16 App 共 65 项 Swift 回归通过，独立本机构建及通用架构准备候选成功。UI strict audit 0 问题，DESIGN lint 0 错误 / 1 项原有 YAML 格式提示。日志为 `local-data/installer-*.log` 和 `installer-premium-audit.json`。未修改额度、hooks、偏好或胶囊运行逻辑。
 
 真实 Finder 复核：首轮 640 × 400 窗口被用户已有路径栏 / 状态栏占据空间，底部提示裁切，不计通过。调整为 640 × 460 并保留底部余量后，应用图标、原生文件夹、中文拖放说明、箭头及完整底部提示正常显示，背景下文字清晰；窗口内只有两个可见项目，右方向键实际将选择从应用移到应用程序。未更改 Finder 全局偏好，未实际安装或替换旧版；截图不能证明拖动安装已经完成。准备候选明确显示未公证，正式 build 2 的签名 / 公证及最终容器另验。
+
+首份美化正式构建 `0.1.0-2-20261010-000817` 的应用与 DMG 均获得公证 Accepted、外层 Gatekeeper 通过，但独立只读挂载检查发现包内应用严格签名失败，未交付。原应用及 ZIP 核验通过；只有 DMG 内应用根目录新增 `com.apple.FinderInfo`，来自安装设置 `hide_extensions` 的 SetFile 操作。已取消该元数据写入，并在 DMG 上传前加入真实挂载下的 helper / bundle 全架构严格检查、附票及 Gatekeeper 验证，任一失败即中止。失败构建保留本地 `WITHDRAWN.txt`，不改写 Apple 的 Accepted 结果，也不以其冒充可安装成品。

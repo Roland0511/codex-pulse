@@ -10,6 +10,7 @@ import plistlib
 import re
 import subprocess
 import sys
+import tempfile
 
 from build_app import sign, signing_identity
 from artwork import generate as generate_artwork
@@ -43,6 +44,25 @@ def notarize(upload, staple_target, authentication, folder, label):
     run("xcrun", "stapler", "staple", staple_target)
     run("xcrun", "stapler", "validate", staple_target)
     return identifier
+
+
+def verify_disk_image(dmg, notarized):
+    # 容器签名不证明包内应用有效；Finder 元数据也可能破坏严格验证。
+    with tempfile.TemporaryDirectory(prefix="pulse-release-check-") as directory:
+        mount = pathlib.Path(directory)
+        attached = False
+        try:
+            run("hdiutil", "attach", "-readonly", "-nobrowse", "-noautoopen", "-mountpoint", mount, dmg)
+            attached = True
+            app = mount / "Codex Pulse.app"
+            for path in (app / "Contents/MacOS/PulseActivityHook", app):
+                run("codesign", "--verify", "--strict", "--all-architectures", path)
+            if notarized:
+                run("xcrun", "stapler", "validate", app)
+                run("spctl", "--assess", "--type", "execute", "--verbose=2", app)
+        finally:
+            if attached:
+                run("hdiutil", "detach", mount)
 
 
 def package(args):
@@ -100,6 +120,7 @@ def package(args):
         "-D", "app=" + str(app), "-D", "artwork=" + str(artwork),
         "-D", "layout=" + str(ROOT / "design/distribution/layout.json"),
         "Codex Pulse", dmg)
+    verify_disk_image(dmg, notarized=not args.prepare_only)
     if not args.prepare_only:
         sign(dmg, signing_identity(args.identity, args.keychain), args.keychain, hardened=False)
         submissions["dmg"] = notarize(dmg, dmg, authentication, folder, "dmg")

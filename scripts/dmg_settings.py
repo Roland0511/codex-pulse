@@ -23,6 +23,7 @@ show_tab_view = False
 show_toolbar = False
 show_pathbar = False
 show_sidebar = False
-hide_extensions = [application.name]
+# 不向已签名的应用写 FinderInfo；扩展名展示沿用 Finder 用户偏好。
+hide_extensions = []
 format = "UDZO"
 filesystem = "HFS+"
