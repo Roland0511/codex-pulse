@@ -4,9 +4,7 @@
 
 ## 安装与连接
 
-v0.1.1 正式下载仍待公证，现可[从源码构建中英双语应用](DISTRIBUTION.md)。以下 DMG 步骤适用于完整验证后的发布附件。
-
-从 [Releases](https://github.com/Roland0511/codex-pulse/releases) 下载通用架构 DMG 或 ZIP，将应用放入 Applications；弹出 DMG 后启动。升级前先退出旧实例。要求 macOS 14+；当前已验证 Apple Silicon 实机，Intel 仅完成编译覆盖。
+从 [Releases](https://github.com/Roland0511/codex-pulse/releases/latest) 下载并打开通用架构 DMG，将应用拖入 Applications，弹出磁盘映像后启动。也提供 ZIP；应用与 DMG 均已签名、公证并附加票据，使用 `SHA256SUMS.txt` 核对下载文件。升级前先退出旧实例。要求 macOS 14+；当前已验证 Apple Silicon 实机，Intel 仅完成编译覆盖。
 
 先安装并登录官方 Codex 应用或 CLI。Pulse 自动发现官方桌面包和常用 CLI 路径；失败时在「设置 → Codex 路径 → 选择」指定可执行文件。正式安装包无需 Python、Xcode 或本仓库。
 

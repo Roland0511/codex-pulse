@@ -1,10 +1,10 @@
 # macOS 手动分发
 
-2026-10-10 开源追加：源码已公开为 MIT，中英文应用与文档已完成；v0.1.1 / build 3 从干净源码 `037d477` 构建、通用架构 Developer ID 签名并上传 Apple。公证查询持续网络超时，尚无公开安装附件；现可按下方说明从源码构建。此前 v0.1.0 成功交付记录保留如下，不代表 v0.1.1 已通过。
+2026-10-10 当前公开分发：[v0.1.1 / build 3](https://github.com/Roland0511/codex-pulse/releases/tag/v0.1.1)，提供通用架构 DMG、ZIP 与 SHA-256。应用从干净公开源码 `037d477` 构建，包含中英文、图标及 MIT 许可；应用及 DMG 均获 Apple 公证 Accepted，Developer ID 严格签名、票据、Gatekeeper 和最终容器独立复核通过。双语安装画面已在真实 Finder 中确认，未替用户安装。此前 v0.1.0 交付记录保留如下。
 
-状态：2026-10-10 v0.1.0（构建 2）正式手动分发包完成，包含完整应用图标和中文拖放安装界面，已在真实 Finder 中确认。应用及 DMG 均通过 Developer ID 签名、Apple 公证、票据及 Gatekeeper；最终 ZIP 解压、DMG 包内应用只读核验和 SHA-256 独立复核通过。支持 arm64 / x86_64，最低 macOS 14；Intel 和旧系统仅完成编译，未做实机运行验收。
+历史交付状态：2026-10-10 v0.1.0（构建 2）正式手动分发包完成，包含完整应用图标和中文拖放安装界面，已在真实 Finder 中确认。应用及 DMG 均通过 Developer ID 签名、Apple 公证、票据及 Gatekeeper；最终 ZIP 解压、DMG 包内应用只读核验和 SHA-256 独立复核通过。支持 arm64 / x86_64，最低 macOS 14；Intel 和旧系统仅完成编译，未做实机运行验收。
 
-本次正式产物位于 `dist/releases/0.1.0-2-20261010-001426/`：
+历史 build 2 产物位于 `dist/releases/0.1.0-2-20261010-001426/`：
 
 - `CodexPulse-0.1.0-universal-notarized.dmg`：优先使用的手动安装包。
 - `CodexPulse-0.1.0-universal-notarized.zip`：已签名并附票的应用。
@@ -103,3 +103,12 @@ python3 -m venv .build/packaging
 工作特效默认关闭，在设置中主动安装，然后到 Codex `/hooks` 审阅并信任全部定义，再检查连接。低额度提醒和开机启动仍默认关闭。签名或公证不替代这些用户选择，也不替代计划中明确延期的系统功能及自然重置实机观察。
 
 流程依据：[Apple Developer ID](https://developer.apple.com/developer-id/)、[公证要求](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)、[自定义公证流程](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow)。
+
+## v0.1.1 公开分发的独立复核
+
+- 当前产物目录 `dist/releases/0.1.1-3-20261010-004412/`，构建来源 `037d477`、`sourceDirty=false`；后续仅更新文档。
+- 发布文件 `CodexPulse-0.1.1-universal-notarized.dmg`，SHA-256：`1552603b314303e3fa2aa15a5d1dd5dfd54d242898c2d72625b5508038ca64a8`。
+- 发布文件 `CodexPulse-0.1.1-universal-notarized.zip`，SHA-256：`aaf6d3a50b25ad2cf23f2c8b15b961a5337860a6cf4ecb6913f741a97bd52fa9`。
+- 原应用、最终 ZIP 解压及 DMG 只读挂载下应用 / helper 的 arm64、x86_64、严格签名、Hardened Runtime、安全时间戳、票据和 Gatekeeper 通过，关键文件内容一致。十种图标表示、MIT 原文、语言声明、无开发 CLI / Demo 标记、无个人路径 / 公证配置 / 私钥标记通过。
+- 初次状态查询反复超时，先取得真实应用票据并完成 ZIP 验证。解锁后查回应用 Accepted，并完成 DMG 的真实 Accepted、附票、严格签名及 Gatekeeper；原 ZIP 字节和校验值保持不变。票据流程参考 [Apple 官方说明](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow)。
+- 真实 Finder 中确认最终 DMG 的图标、中英文提示、箭头及底部说明完整。发布附件仅含最终 DMG、ZIP 和校验值；不包含中间上传文件、构建目录或日志。

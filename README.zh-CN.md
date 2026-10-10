@@ -1,6 +1,6 @@
 <p align="center"><img src="docs/assets/hero-zh.svg" alt="Codex Pulse — 一枚轻巧的 macOS 原生额度胶囊。图中为合成示意数据。" width="100%" /></p>
 
-<p align="center"><a href="#从源码构建"><strong>构建 macOS 版</strong></a> · <a href="README.md">English</a> · <a href="docs/USAGE.zh-CN.md">使用指南</a> · <a href="https://github.com/Roland0511/codex-pulse/issues">问题反馈</a></p>
+<p align="center"><a href="https://github.com/Roland0511/codex-pulse/releases/latest"><strong>下载 macOS 版</strong></a> · <a href="README.md">English</a> · <a href="docs/USAGE.zh-CN.md">使用指南</a> · <a href="https://github.com/Roland0511/codex-pulse/issues">问题反馈</a></p>
 
 <p align="center"><img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-19242b?style=flat-square" /> <img alt="通用架构" src="https://img.shields.io/badge/Apple_Silicon_%2B_Intel-universal-007b71?style=flat-square" /> <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-007b71?style=flat-square" /></a> <img alt="中英双语" src="https://img.shields.io/badge/语言-简体中文_%2F_English-19242b?style=flat-square" /></p>
 
@@ -20,13 +20,11 @@ Codex Pulse 把 **Codex 剩余额度和重置倒计时**，放进一枚随手可
 
 ## 三步开始
 
-**v0.1.1 正式下载仍在等待公证。** 中英双语应用现可[从源码构建](#从源码构建)，只有完整验证通过的包才会附到发布页。
-
 1. 安装并登录官方 **Codex** 应用或 CLI。
-2. 按照[源码构建说明](#从源码构建)生成应用。
-3. 打开 **dist/Codex Pulse.app**。
+2. 从 [Releases](https://github.com/Roland0511/codex-pulse/releases/latest) 下载并打开通用架构 DMG。
+3. 将 **Codex Pulse.app 拖入 Applications**，弹出磁盘映像后启动。
 
-正式版本可用后，从 [Releases](https://github.com/Roland0511/codex-pulse/releases) 下载通用架构 DMG，将 **Codex Pulse.app 拖入 Applications**，弹出后启动。正式包必须通过 Developer ID 签名、Apple 公证、票据及最终容器验证，下载附件提供 `SHA256SUMS.txt`。
+应用及 DMG 已完成 **Developer ID 签名、Apple 公证及票据附加**，最终容器独立验证通过。也提供 ZIP，使用 `SHA256SUMS.txt` 核对下载文件。
 
 **要求 macOS 14+。** 通用架构包含 Apple Silicon 和 Intel；当前实机验证在 Apple Silicon 上完成，Intel 与旧版 macOS 的实机覆盖仍待补充。
 

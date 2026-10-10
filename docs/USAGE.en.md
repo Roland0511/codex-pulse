@@ -4,9 +4,7 @@
 
 ## Install and connect
 
-Signed v0.1.1 downloads are pending notarization. For now, [build the bilingual app from source](BUILD.en.md). The following DMG instructions apply once verified assets are published.
-
-Download the Universal DMG or ZIP from [Releases](https://github.com/Roland0511/codex-pulse/releases). Drag the app to Applications, eject the DMG, then launch. Quit an older instance before replacing it. The app supports macOS 14+, with Apple Silicon runtime verification and Intel compilation coverage.
+Download and open the Universal DMG from [Releases](https://github.com/Roland0511/codex-pulse/releases/latest). Drag the app to Applications, eject the disk image, then launch. A ZIP is also available. The app and DMG are Developer ID signed, notarized, and stapled; verify your download against `SHA256SUMS.txt`. Quit an older instance before replacing it. The app supports macOS 14+, with Apple Silicon runtime verification and Intel compilation coverage.
 
 Install and sign in to the official Codex app or CLI first. Pulse discovers the official desktop bundle and common CLI locations. If discovery fails, open Settings → Codex executable → Choose. The release does not require Python, Xcode, or this repository.
 
