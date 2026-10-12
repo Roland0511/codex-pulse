@@ -172,3 +172,16 @@ python3 -m venv .build/packaging
 
 - 本机通过 Sparkle 从 0.2.1 升级到 0.2.2；安装后的二进制与正式包一致，签名 / Gatekeeper 通过，语言、外观、快捷键、图钉及自动更新偏好语义保持不变。
 - 首次 0.2.1 草稿查询失败发生在公开前；空草稿已归档后撤回，旧产物标记 WITHDRAWN。发布器改为按发行 ID 读取草稿，并增加回归测试。后续两次公开发布均走修复后的校验流程。
+
+## v0.3.0 / build 9（2026-10-13）
+
+- [公开发行](https://github.com/Roland0511/codex-pulse/releases/tag/v0.3.0)包含 Codex 窗口跟随与重叠目标选择；PR #8 已合并，随后补齐跨屏可见区域保护。
+- 构建源码 `b05980d241d28d0d34f2399eaaad1a20456a37d4`，`sourceDirty=false`；[main CI 38284364833](https://github.com/Roland0511/codex-pulse/actions/runs/38284364833) 成功，签名 tag 指向该源码。
+- 应用与 DMG 均为 Apple Accepted，附票、Gatekeeper、ZIP / DMG 内应用和嵌套 Sparkle 签名独立验证通过。通用架构包含 arm64 + x86_64。
+- `scripts/release.py` 完成草稿上传、附件核验、公开发行、四个匿名下载以及 Latest 更新清单同步验证。
+- `CodexPulse-0.3.0-universal-notarized.dmg` SHA-256：`ea34ae841d28eb835ec7b7ba61db114894597ebe63dacc8900a27da222c1ec62`。
+- `CodexPulse-0.3.0-universal-notarized.zip` SHA-256：`517fd9845a505773344912d9d6609c2ea0ad79c8d0639e5aca4bc00fd81f8df9`。
+- `appcast.xml` SHA-256：`508ea3ca09c29d3635d884c958eabf3174ff6a6b005d2966d2f3e47da4d1be3d`。
+- 本机从公开 ZIP 更新为 0.3.0 / build 9，应用二进制和 helper 与公开包一致；签名、票据、Gatekeeper 和单实例通过，安装前后的偏好语义一致。旧版应用与偏好备份保留在本机。
+- 首轮源码 `2464ba5` 的未公开候选在发布前撤回，保留于本机 `withdrawn-v0.3.0-build9-2464ba5/`；没有为它创建 tag 或公开发行。其 Apple 提交记录保留，不能当作本次发布产物。
+- 原生菜单可见性与合成几何 / 生命周期回归不等于真实窗口移动、多屏或全屏验收；手动交互边界见 [验证记录](VERIFICATION.md)。
