@@ -1,0 +1,18 @@
+{
+  "models": [
+    {
+      "slug": "codex-pulse-quota-only",
+      "display_name": "Quota transport only",
+      "description": "Local placeholder, not an inference model or account capability.",
+      "base_instructions": "Quota transport only; the client never creates threads or turns.",
+      "supported_reasoning_levels": [],
+      "shell_type": "disabled",
+      "visibility": "hide",
+      "supported_in_api": false,
+      "priority": 0,
+      "support_verbosity": false,
+      "truncation_policy": { "mode": "tokens", "limit": 1 },
+      "experimental_supported_tools": []
+    }
+  ]
+}

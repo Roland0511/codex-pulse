@@ -63,6 +63,9 @@ def build(args):
     resources.mkdir()
     shutil.copy2(artwork / "AppIcon.icns", resources / "AppIcon.icns")
     shutil.copy2(ROOT / "LICENSE", resources / "LICENSE.txt")
+    # SwiftPM 的 PulseCore 资源也必须进入可移动的 .app，不能依赖构建目录。
+    for bundle in bins[0].glob("*.bundle"):
+        shutil.copytree(bundle, resources / bundle.name)
     for name in ("CodexPulse", "PulseActivityHook"):
         target = macos / name
         if len(bins) == 1:
