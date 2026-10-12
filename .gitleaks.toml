@@ -1,0 +1,7 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Public Sparkle Ed25519 verification key, intentionally shipped in Info.plist; not the private signing key."
+regexTarget = "secret"
+regexes = ['''^qBdpJRxRhKASqb0vEhmmR\+lx66/fCpuLHx97PeaaGaA=$''']

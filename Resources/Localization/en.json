@@ -127,5 +127,14 @@
   "error.serviceUnavailable": "Quota service is temporarily unavailable.",
   "error.instance": "Codex Pulse could not establish single-instance protection and has exited.\n",
   "demo.bucket": "Demo",
-  "demo.longBucket": "Synthetic quota bucket with a long name; the full label remains accessible %ld"
+  "demo.longBucket": "Synthetic quota bucket with a long name; the full label remains accessible %ld",
+  "updates.check": "Check for Updates…",
+  "updates.version": "Version %@",
+  "updates.autoChecks": "Check for updates automatically",
+  "updates.autoInstall": "Download and install automatically",
+  "updates.help": "Checks daily when enabled. Automatic updates are installed on quit; you may be prompted to restart. Signed updates come from GitHub.",
+  "updates.unavailable": "Updates are available in installed release builds.",
+  "updates.ready": "Version %@ is ready to install.",
+  "updates.installNow": "Install and Relaunch",
+  "updates.readyHelp": "This update will install on quit. The switches above apply to future updates."
 }

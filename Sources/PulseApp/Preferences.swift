@@ -86,8 +86,9 @@ struct ShortcutChoice: Codable, Equatable {
     let store: QuotaStore
     let overlay: OverlayController
     let activityConnection: ActivityConnection
-    init(hotkey: GlobalShortcut, store: QuotaStore, overlay: OverlayController) {
-        self.hotkey = hotkey; self.store = store; self.overlay = overlay
+    let updater: AppUpdater
+    init(hotkey: GlobalShortcut, store: QuotaStore, overlay: OverlayController, updater: AppUpdater) {
+        self.hotkey = hotkey; self.store = store; self.overlay = overlay; self.updater = updater
         activityConnection = ActivityConnection(store: store)
         shortcut = LocalDefaults.store.data(forKey: "shortcut").flatMap { try? JSONDecoder().decode(ShortcutChoice.self, from: $0) } ?? ShortcutChoice()
         appearance = LocalDefaults.store.string(forKey: "appearance") ?? "codex"
@@ -107,7 +108,7 @@ struct ShortcutChoice: Codable, Equatable {
         if window == nil {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 530), styleMask: [.titled, .closable], backing: .buffered, defer: false)
             window.title = tr("settings.title"); window.isReleasedWhenClosed = false
-            window.contentView = NSHostingView(rootView: PreferencesView(preferences: self, store: store, activityConnection: activityConnection))
+            window.contentView = NSHostingView(rootView: PreferencesView(preferences: self, store: store, activityConnection: activityConnection, updater: updater))
             window.center(); self.window = window
         }
         NSApp.activate(ignoringOtherApps: true); window?.makeKeyAndOrderFront(nil)
@@ -140,6 +141,7 @@ struct PreferencesView: View {
     @ObservedObject var preferences: Preferences
     @ObservedObject var store: QuotaStore
     @ObservedObject var activityConnection: ActivityConnection
+    @ObservedObject var updater: AppUpdater
     @ObservedObject private var appearance = AppearanceStore.shared
     @ObservedObject private var language = LanguageStore.shared
     var body: some View {
@@ -171,6 +173,26 @@ struct PreferencesView: View {
                         Button(activityConnection.checking ? tr("activity.checking") : tr("activity.check")) { activityConnection.refresh() }
                             .disabled(activityConnection.checking)
                     }
+                }
+            }
+            Section {
+                HStack {
+                    Text(tr("updates.version", updater.version))
+                    Spacer()
+                    Button(tr("updates.check")) { updater.check() }.disabled(!updater.canCheck)
+                }
+                Toggle(tr("updates.autoChecks"), isOn: Binding(get: { updater.automaticallyChecks }, set: updater.setAutomaticChecks))
+                    .disabled(!updater.isAvailable)
+                Toggle(tr("updates.autoInstall"), isOn: Binding(get: { updater.automaticallyInstalls }, set: updater.setAutomaticInstalls))
+                    .disabled(!updater.isAvailable)
+                Text(tr(updater.isAvailable ? "updates.help" : "updates.unavailable")).font(.caption).foregroundStyle(.secondary)
+                if let version = updater.pendingVersion {
+                    HStack {
+                        Text(tr("updates.ready", version)).font(.caption)
+                        Spacer()
+                        Button(tr("updates.installNow")) { updater.installNow() }
+                    }
+                    Text(tr("updates.readyHelp")).font(.caption).foregroundStyle(.secondary)
                 }
             }
             HStack {

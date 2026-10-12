@@ -2,6 +2,8 @@
 """构建本地 .app；支持便携通用架构及 Developer ID 签名，不安装或公证。"""
 import argparse
 import datetime
+import json
+import base64
 import os
 import pathlib
 import plistlib
@@ -39,17 +41,45 @@ def sign(path, identity=None, keychain=None, hardened=True):
     subprocess.run(["codesign", "--verify", "--strict", str(path)], check=True)
 
 
+def update_configuration():
+    config = json.loads((ROOT / "Resources/Updates.json").read_text())
+    if config["feedURL"] != "https://github.com/Roland0511/codex-pulse/releases/latest/download/appcast.xml":
+        raise ValueError("更新源必须是本项目的 HTTPS 发布地址")
+    if len(base64.b64decode(config["publicEDKey"], validate=True)) != 32:
+        raise ValueError("更新公钥格式无效")
+    return config
+
+
+def embed_sparkle(stage, scratch, identity=None, keychain=None):
+    source = scratch / "artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
+    target = stage / "Contents/Frameworks/Sparkle.framework"
+    target.parent.mkdir(parents=True)
+    shutil.copytree(source, target, symlinks=True)
+    version = target / "Versions/Current"
+    # 本应用不使用 App Sandbox；按 Sparkle 官方指南移除未启用的 XPC 服务。
+    shutil.rmtree(version / "XPCServices")
+    alias = target / "XPCServices"
+    if alias.is_symlink():
+        alias.unlink()
+    for item in (version / "Autoupdate", version / "Updater.app", target):
+        sign(item, identity, keychain)
+    shutil.copy2(scratch / "checkouts/Sparkle/LICENSE", stage / "Contents/Resources/Sparkle-LICENSE.txt")
+
+
 def build(args):
     identity = signing_identity(args.identity, args.keychain) if args.identity else None
     subprocess.run(["python3", "scripts/generate_tokens.py", "--check"], cwd=ROOT, check=True)
     subprocess.run(["python3", "scripts/generate_localizations.py", "--check"], cwd=ROOT, check=True)
     architectures = ["arm64", "x86_64"] if args.architecture == "universal" else [args.architecture]
-    bins = []
+    bins, scratches = [], []
     for architecture in architectures:
         command = ["swift", "build", "-c", "release"]
+        scratch = ROOT / ".build"
         if architecture != "native":
-            command += ["--triple", architecture + "-apple-macosx14.0", "--scratch-path", ".build/distribution-" + architecture]
+            scratch = ROOT / (".build/distribution-" + architecture)
+            command += ["--triple", architecture + "-apple-macosx14.0", "--scratch-path", str(scratch)]
         subprocess.run(command, cwd=ROOT, check=True)
+        scratches.append(scratch)
         bins.append(pathlib.Path(subprocess.check_output(command + ["--show-bin-path"], cwd=ROOT, text=True).strip()))
     dist = args.output_dir.resolve()
     dist.mkdir(parents=True, exist_ok=True)
@@ -75,6 +105,7 @@ def build(args):
         if args.portable or identity:
             subprocess.run(["strip", "-S", str(target)], check=True)
         subprocess.run(["lipo", "-archs", str(target)], check=True)
+    update = update_configuration()
     info = {
         "CFBundleExecutable": "CodexPulse", "CFBundleIdentifier": "dev.roland.codex-pulse",
         "CFBundleName": "Codex Pulse", "CFBundleDisplayName": "Codex Pulse",
@@ -83,12 +114,19 @@ def build(args):
         "CFBundlePackageType": "APPL", "CFBundleShortVersionString": args.version, "CFBundleVersion": args.build_number,
         "LSMinimumSystemVersion": "14.0", "LSUIElement": True,
         "NSPrincipalClass": "NSApplication", "NSHighResolutionCapable": True,
+        "SUFeedURL": update["feedURL"], "SUPublicEDKey": update["publicEDKey"],
+        "SUEnableAutomaticChecks": False, "SUAutomaticallyUpdate": False,
+        "SUAllowsAutomaticUpdates": True, "SUScheduledCheckInterval": 86400,
+        "SUEnableSystemProfiling": False, "SUVerifyUpdateBeforeExtraction": True,
+        "SURequireSignedFeed": True, "SUSignedFeedFailureExpirationInterval": 0,
+
     }
     # 正式签名和便携候选都不携带开发者机器的 CLI 路径或偏好。
     if not (args.portable or identity) and (executable := shutil.which("codex")):
         info["PulseCodexExecutable"] = os.path.realpath(executable) if os.path.basename(os.path.realpath(executable)) == "codex" else executable
     with (stage / "Contents/Info.plist").open("wb") as file:
         plistlib.dump(info, file)
+    embed_sparkle(stage, scratches[0], identity, args.keychain)
     sign(macos / "PulseActivityHook", identity, args.keychain)
     sign(stage, identity, args.keychain)
     if app.exists():
@@ -106,8 +144,8 @@ def main():
     parser.add_argument("--architecture", choices=["native", "arm64", "x86_64", "universal"], default="native")
     parser.add_argument("--portable", action="store_true", help="不写入本机 CLI 路径；正式签名时自动生效")
     parser.add_argument("--output-dir", type=pathlib.Path, default=ROOT / "dist")
-    parser.add_argument("--version", default="0.1.3")
-    parser.add_argument("--build-number", default="5")
+    parser.add_argument("--version", default="0.2.0")
+    parser.add_argument("--build-number", default="6")
     args = parser.parse_args()
     if not re.fullmatch(r"\d+\.\d+\.\d+", args.version) or not re.fullmatch(r"[1-9]\d*", args.build_number):
         parser.error("version 必须为三段数字，build-number 必须为正整数")
