@@ -90,10 +90,16 @@ import PulseCore
         item(menu, tr("menu.details"), #selector(openDetails), "")
         item(menu, store.refreshing ? tr("status.refreshing") : tr("menu.refresh"), #selector(refresh), "r").isEnabled = !store.refreshing && !store.demo
         menu.addItem(.separator())
-        let position = NSMenu()
-        item(position, tr("menu.center"), #selector(center), "")
-        item(position, tr("menu.left"), #selector(left), "")
-        item(position, tr("menu.right"), #selector(right), "")
+        let position = NSMenu(); position.autoenablesItems = false
+        item(position, tr("menu.center"), #selector(center), "").state = overlay.windowDock == nil && overlay.model.side == nil ? .on : .off
+        item(position, tr("menu.left"), #selector(left), "").state = overlay.windowDock == nil && overlay.model.side == .left ? .on : .off
+        item(position, tr("menu.right"), #selector(right), "").state = overlay.windowDock == nil && overlay.model.side == .right ? .on : .off
+        position.addItem(.separator())
+        let codexAvailable = overlay.canDockToCodex
+        let codexLeft = item(position, tr("menu.codexLeft"), #selector(codexLeft), "")
+        codexLeft.isEnabled = codexAvailable; codexLeft.state = overlay.windowDock?.side == .left ? .on : .off
+        let codexRight = item(position, tr("menu.codexRight"), #selector(codexRight), "")
+        codexRight.isEnabled = codexAvailable; codexRight.state = overlay.windowDock?.side == .right ? .on : .off
         let positionItem = NSMenuItem(title: tr("menu.position"), action: nil, keyEquivalent: ""); positionItem.submenu = position; menu.addItem(positionItem)
         item(menu, tr("reminders.menu"), #selector(reminders), "").state = store.remindersEnabled ? .on : .off
         item(menu, tr("launch"), #selector(launchAtLogin), "").state = preferences.launchEnabled ? .on : .off
@@ -115,6 +121,8 @@ import PulseCore
     @objc private func center() { overlay.place(nil) }
     @objc private func left() { overlay.place(.left) }
     @objc private func right() { overlay.place(.right) }
+    @objc private func codexLeft() { overlay.placeInCodex(.left) }
+    @objc private func codexRight() { overlay.placeInCodex(.right) }
     @objc private func reminders() { store.enableReminders(!store.remindersEnabled) }
     @objc private func launchAtLogin() { preferences.setLaunch(!preferences.launchEnabled) }
     @objc private func settings() { preferences.show() }

@@ -27,6 +27,7 @@ public struct OverlayPosition: Codable, Equatable, Sendable {
 public struct Attachment: Equatable, Sendable {
     public let side: DockSide?
     public let progress: Double
+    public init(side: DockSide?, progress: Double) { self.side = side; self.progress = progress }
     public static func calculate(intended: CGRect, visible: CGRect, travel: Double = 32) -> Self {
         let left = intended.minX - visible.minX, right = visible.maxX - intended.maxX
         let gap = min(left, right)
