@@ -8,7 +8,7 @@ Codex Pulse keeps your **remaining Codex quota and reset countdown** within reac
 
 Built with SwiftUI and AppKit. Quota comes from the official local Codex App Server. The app does not read your conversations.
 
-**Known issue in v0.1.1:** Quota-service startup can overwrite Codex's shared model cache ([issue #1](https://github.com/Roland0511/codex-pulse/issues/1)). Current source adds a fixed local catalog and private runtime directories; existing v0.1.1 installers do not include the fix. [Fix and verification notes](docs/QUOTA-TRANSPORT.md).
+**[v0.1.2](https://github.com/Roland0511/codex-pulse/releases/tag/v0.1.2) fixes quota-service startup overwriting Codex's shared model cache** ([issue #1](https://github.com/Roland0511/codex-pulse/issues/1)). Upgrade from v0.1.1 for the bundled static catalog and private runtime directories. [Fix and verification notes](docs/QUOTA-TRANSPORT.md).
 
 ## A little presence, useful detail
 

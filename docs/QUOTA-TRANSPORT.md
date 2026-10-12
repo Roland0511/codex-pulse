@@ -1,6 +1,6 @@
 # 额度连接与共享模型缓存保护
 
-2026-10-12，Asia/Shanghai；对应 [issue #1](https://github.com/Roland0511/codex-pulse/issues/1)。这是源码修复记录，已有 v0.1.1 安装包仍保留旧实现。
+2026-10-12，Asia/Shanghai；对应 [issue #1](https://github.com/Roland0511/codex-pulse/issues/1)。修复已随 [v0.1.2 / build 4](https://github.com/Roland0511/codex-pulse/releases/tag/v0.1.2) 发布；已有 v0.1.1 安装包仍保留旧实现，需升级应用。
 
 ## 为什么用 App Server
 
@@ -36,7 +36,7 @@
 | 无效目录 | 无效空目录在模型网络请求 / 缓存写入前失败；没有移除保护后重试 |
 | 真实登录只读查询 | 桌面内置 CLI 成功读取额度，保留 10 秒观察期；真实共享缓存字节、修改时间及 inode 不变，子进程回收；只保存脱敏判断在 Git 忽略目录 |
 
-完整 Python 回归 13 项通过（包含上述真实 Swift 客户端交叉检查）；未设置 `PULSE_TEST_CODEX` 时其中 4 项实装 CLI 回归明确跳过。原生 `0.1.2 / build 4` 开发候选已构建、资源随包复制及 ad-hoc 签名校验通过，未公证、未发布，也未替换已安装的正式应用。
+完整 Python 回归 13 项通过（包含上述真实 Swift 客户端交叉检查）；未设置 `PULSE_TEST_CODEX` 时其中 4 项实装 CLI 回归明确跳过。随后正式 `0.1.2 / build 4` 通用架构应用及 DMG 均获 Apple 公证 Accepted，签名、票据、Gatekeeper、ZIP 解压及 DMG 挂载副本独立复核通过；已公开发布，未替换本机已安装应用。详见 [分发记录](DISTRIBUTION.md)。
 
 复验命令：
 

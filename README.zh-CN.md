@@ -8,7 +8,7 @@ Codex Pulse 把 **Codex 剩余额度和重置倒计时**，放进一枚随手可
 
 使用 SwiftUI 与 AppKit 原生构建，通过官方本地 Codex App Server 读取额度，不读取聊天内容。
 
-**v0.1.1 已知问题：** 额度服务启动可能改写 Codex 的共享模型缓存（[issue #1](https://github.com/Roland0511/codex-pulse/issues/1)）。当前源码已加入本地固定模型目录和独立运行时目录保护；已有 v0.1.1 安装包不包含该修复。[修复与验证说明](docs/QUOTA-TRANSPORT.md)。
+**[v0.1.2](https://github.com/Roland0511/codex-pulse/releases/tag/v0.1.2) 已修复额度服务启动改写 Codex 共享模型缓存的问题**（[issue #1](https://github.com/Roland0511/codex-pulse/issues/1)）。建议 v0.1.1 用户升级，获得随包固定模型目录和独立运行时目录保护。[修复与验证说明](docs/QUOTA-TRANSPORT.md)。
 
 ## 轻巧，但该知道的都在
 

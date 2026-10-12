@@ -1,6 +1,6 @@
 # macOS 手动分发
 
-2026-10-10 当前公开分发：[v0.1.1 / build 3](https://github.com/Roland0511/codex-pulse/releases/tag/v0.1.1)，提供通用架构 DMG、ZIP 与 SHA-256。应用从干净公开源码 `037d477` 构建，包含中英文、图标及 MIT 许可；应用及 DMG 均获 Apple 公证 Accepted，Developer ID 严格签名、票据、Gatekeeper 和最终容器独立复核通过。双语安装画面已在真实 Finder 中确认，未替用户安装。此前 v0.1.0 交付记录保留如下。
+2026-10-12 当前公开分发：[v0.1.2 / build 4](https://github.com/Roland0511/codex-pulse/releases/tag/v0.1.2)，修复 issue #1 的共享模型缓存写入副作用，提供通用架构 DMG、ZIP 与 SHA-256。应用从干净公开源码 `2b04f11` 构建，应用及 DMG 均获 Apple 公证 Accepted；签名、票据、Gatekeeper、ZIP 解压及 DMG 挂载副本独立复核通过。Intel 已交叉编译，未新增 Intel 实机或桌面交互验收；未替用户安装。历史交付记录保留如下。
 
 历史交付状态：2026-10-10 v0.1.0（构建 2）正式手动分发包完成，包含完整应用图标和中文拖放安装界面，已在真实 Finder 中确认。应用及 DMG 均通过 Developer ID 签名、Apple 公证、票据及 Gatekeeper；最终 ZIP 解压、DMG 包内应用只读核验和 SHA-256 独立复核通过。支持 arm64 / x86_64，最低 macOS 14；Intel 和旧系统仅完成编译，未做实机运行验收。
 
@@ -112,3 +112,16 @@ python3 -m venv .build/packaging
 - 原应用、最终 ZIP 解压及 DMG 只读挂载下应用 / helper 的 arm64、x86_64、严格签名、Hardened Runtime、安全时间戳、票据和 Gatekeeper 通过，关键文件内容一致。十种图标表示、MIT 原文、语言声明、无开发 CLI / Demo 标记、无个人路径 / 公证配置 / 私钥标记通过。
 - 初次状态查询反复超时，先取得真实应用票据并完成 ZIP 验证。解锁后查回应用 Accepted，并完成 DMG 的真实 Accepted、附票、严格签名及 Gatekeeper；原 ZIP 字节和校验值保持不变。票据流程参考 [Apple 官方说明](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow)。
 - 真实 Finder 中确认最终 DMG 的图标、中英文提示、箭头及底部说明完整。发布附件仅含最终 DMG、ZIP 和校验值；不包含中间上传文件、构建目录或日志。
+
+## v0.1.2 / build 4 正式发布（2026-10-12）
+
+- 发布地址：[v0.1.2](https://github.com/Roland0511/codex-pulse/releases/tag/v0.1.2)。修复 [issue #1](https://github.com/Roland0511/codex-pulse/issues/1)，PR #2 已合并。
+- 干净构建源码 `2b04f11aad8cebc1e8e23be67aa60c9941e7959b`，`sourceDirty=false`；签名 tag `v0.1.2` 指向该源码。合并提交 `810fbeb` 与构建源码树一致，远端 macOS CI 通过；发布后只更新交付文档。
+- 产物目录 `dist/releases/0.1.2-4-20261012-215501/`；应用及 helper 均含 `arm64 + x86_64`，最低 macOS 14，版本 0.1.2 / build 4。随包 `QuotaModelCatalog.json` 与源码一致，MIT 许可及 en / zh-Hans 声明正确，无开发 CLI 路径或演示标记。
+- 应用和 DMG 两次 Apple 公证均返回 `Accepted`，原始提交 / 结果仅保留在忽略的产物目录。Developer ID 全架构严格签名、Hardened Runtime、安全时间戳、stapler、Gatekeeper 通过；最终 ZIP 解压副本和只读挂载 DMG 内的应用独立通过同样检查，临时挂载已卸载。
+- 安装画布的背景尺寸 / 分辨率、图标及 `.DS_Store` 布局参数独立检查通过；本次没有新增真实 Finder 操作或桌面交互验收，不替代既有记录。
+- 正式公开附件仅有 DMG（2,622,251 bytes）、ZIP（1,930,527 bytes）、`SHA256SUMS.txt`（214 bytes）。发布后禁用认证匿名下载三者，逐字节及 SHA-256 均与本地验证产物一致；无公证上传中间包。
+- DMG SHA-256：`614fca968cee304906406fc5fc5ae45d100b6c17463d36761aba00a3a6153320`。
+- ZIP SHA-256：`e0bb161e501afcfff192e0bbfc9cc2189295d1ac6f36896d5aad937995f2a6a2`。
+- 禁用凭据的公开仓库全新克隆与 Gitleaks 全历史扫描通过。本地报告位于忽略目录 `local-data/issue-1/`，未将真实账户响应、身份或公证凭据提交到 Git。
+- 未安装 / 覆盖本机应用，未重新验证 Intel 实机、Ultrafast、真实会话上下文、拖动、多屏或休眠恢复。

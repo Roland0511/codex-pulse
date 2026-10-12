@@ -4,7 +4,7 @@
 
 只读 RPC 并不保证 App Server 初始化没有写入副作用。本次对额度和 hooks 信任检查统一固定本地模型目录，将 sqlite / 日志放在私有临时位置；协议及范围保持不变。73 项 Swift 回归通过，两种本机 CLI（桌面 `0.162.0-alpha.17.2`、全局 `0.162.1`）的合成 HTTPS / 认证夹具通过，覆盖连续启动、并发、无效目录及移除保护后的模型请求对照。真实登录查询保留 10 秒观察期，主缓存字节、mtime 和 inode 不变，子进程回收；脱敏结果保留于 Git 忽略的 `private-evidence/issue-1-live.json`。
 
-本次原生候选仅为 ad-hoc 开发构建，未发布新安装包，未重新验收桌面交互、Ultrafast 入口或真实会话上下文。详细机制和复验命令见 [QUOTA-TRANSPORT.md](QUOTA-TRANSPORT.md)。以下记录保留历史验证范围。
+后续 v0.1.2 / build 4 已完成正式公证发布，详见下方新增记录；没有重新验收桌面交互、Ultrafast 入口或真实会话上下文。详细机制和复验命令见 [QUOTA-TRANSPORT.md](QUOTA-TRANSPORT.md)。以下记录保留历史验证范围。
 
 日期：2026-10-08 至 2026-10-09，Asia/Shanghai。状态：用户授权的真实审批等待 / 恢复通过，晚到事件关联修复后的 65 项 Swift 回归、Release / 签名及 strict audit 通过，新包已运行。设置页额度、连续 600 秒空闲、流光范围 / 渐隐 / 水平对齐、全屏及减少动态效果的既有证据保留。用户已明确把通知 / 登录项启用后的系统验收留到后续并保持关闭；正式账户自然重置样本仍缺，不宣称其已通过。
 
@@ -354,3 +354,16 @@ DMG 外层追加核验中，沙箱内 codesign / stapler 曾返回签名或读�
 公开核对：替换仓库匿名可克隆，旧私有提交网页为 HTTP 404、API 为 422 No commit found，私有原仓库保持归档。真实账户截图、恢复 bundle、原始响应、签名 / 公证凭据和工具报告未进入公开 Git 或附件。浏览器本地预览 / Demo 应用访问的审批拒绝仍按上文单列，未把离线或技术测试冒充相关真实桌面验收。
 
 发布后的匿名下载复核：GitHub v0.1.1 为非草稿正式发布，仅含 DMG（2,586,653 bytes）、ZIP（1,890,144 bytes）及 `SHA256SUMS.txt`；禁用认证重新下载三个附件成功，两个分发文件逐字节及 SHA-256 均与独立验证的本地最终文件一致。GitHub 密钥扫描当前告警为 0。
+
+## v0.1.2 / build 4 正式发布（2026-10-12）
+
+- 发布地址：[v0.1.2](https://github.com/Roland0511/codex-pulse/releases/tag/v0.1.2)。修复 [issue #1](https://github.com/Roland0511/codex-pulse/issues/1)，PR #2 已合并。
+- 干净构建源码 `2b04f11aad8cebc1e8e23be67aa60c9941e7959b`，`sourceDirty=false`；签名 tag `v0.1.2` 指向该源码。合并提交 `810fbeb` 与构建源码树一致，远端 macOS CI 通过；发布后只更新交付文档。
+- 产物目录 `dist/releases/0.1.2-4-20261012-215501/`；应用及 helper 均含 `arm64 + x86_64`，最低 macOS 14，版本 0.1.2 / build 4。随包 `QuotaModelCatalog.json` 与源码一致，MIT 许可及 en / zh-Hans 声明正确，无开发 CLI 路径或演示标记。
+- 应用和 DMG 两次 Apple 公证均返回 `Accepted`，原始提交 / 结果仅保留在忽略的产物目录。Developer ID 全架构严格签名、Hardened Runtime、安全时间戳、stapler、Gatekeeper 通过；最终 ZIP 解压副本和只读挂载 DMG 内的应用独立通过同样检查，临时挂载已卸载。
+- 安装画布的背景尺寸 / 分辨率、图标及 `.DS_Store` 布局参数独立检查通过；本次没有新增真实 Finder 操作或桌面交互验收，不替代既有记录。
+- 正式公开附件仅有 DMG（2,622,251 bytes）、ZIP（1,930,527 bytes）、`SHA256SUMS.txt`（214 bytes）。发布后禁用认证匿名下载三者，逐字节及 SHA-256 均与本地验证产物一致；无公证上传中间包。
+- DMG SHA-256：`614fca968cee304906406fc5fc5ae45d100b6c17463d36761aba00a3a6153320`。
+- ZIP SHA-256：`e0bb161e501afcfff192e0bbfc9cc2189295d1ac6f36896d5aad937995f2a6a2`。
+- 禁用凭据的公开仓库全新克隆与 Gitleaks 全历史扫描通过。本地报告位于忽略目录 `local-data/issue-1/`，未将真实账户响应、身份或公证凭据提交到 Git。
+- 未安装 / 覆盖本机应用，未重新验证 Intel 实机、Ultrafast、真实会话上下文、拖动、多屏或休眠恢复。
