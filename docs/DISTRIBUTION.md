@@ -14,6 +14,10 @@
 
 构建 1 保留为历史交付。首份美化构建 `0.1.0-2-20261010-000817` 虽获 Apple Accepted，但包内应用严格签名失败，已标记 `WITHDRAWN.txt`，不得分发；本次修复后的独立容器核验已通过。详细原因和验证边界见 [验证记录](VERIFICATION.md)。
 
+## v0.1.3 / build 5 发布准备（2026-10-13）
+
+PR #4 已合并，修复重复回填导致的额度及 hooks 初始化超时。此次按用户要求构建、签名公证、公开发布并更新本机应用；完成状态和校验值待实际验证后记录。
+
 ## 签名准备
 
 需要有效的 **Developer ID Application** 证书及对应私钥。Apple Development、Apple Distribution、单独的 `.cer` 或 Apple ID 邮箱均不能替代这一签名身份。
@@ -65,7 +69,7 @@ python3 -m venv .build/packaging
   --notary-profile "codex-pulse-notary"
 ```
 
-默认版本 `0.1.2`、构建号 `4`、通用架构 `arm64 + x86_64`，最低 macOS 14。可用 `--version`、`--build-number`、`--architecture` 指定；自定义钥匙串通过 `--keychain` 指定，该路径同时用于签名和公证。Intel 架构编译不等于 Intel 实机验收。
+默认版本 `0.1.3`、构建号 `5`、通用架构 `arm64 + x86_64`，最低 macOS 14。可用 `--version`、`--build-number`、`--architecture` 指定；自定义钥匙串通过 `--keychain` 指定，该路径同时用于签名和公证。Intel 架构编译不等于 Intel 实机验收。
 
 流程依次构建两个架构、合并应用与 helper、去除调试符号、验证有效 Developer ID、签名 helper 及应用（Hardened Runtime、安全时间戳），上传 ZIP 公证，将票据附到 `.app` 并验证 Gatekeeper；再生成带 Applications 快捷入口的 DMG，只读挂载并验证其中应用 / helper 的严格全架构签名、应用票据及 Gatekeeper，卸载后再为 DMG 签名 / 公证 / 附票并验证。最终 ZIP 从已附票的应用生成。
 
