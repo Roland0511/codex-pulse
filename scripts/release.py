@@ -172,9 +172,10 @@ def release(args):
     remote = remote_release(tag)
     require(remote is None or journal.get("createStarted"), "此版本已存在，请递增 version 和 build")
     print("核对钥匙串、源码、远端 CI 和当前正式版本…", flush=True)
+    check_source(source)
+    run("swift", "package", "resolve", timeout=600)
     verify_key()
     signing_identity(args.identity, args.keychain)
-    check_source(source)
     if not (remote and not remote["isDraft"] and journal.get("publishStarted")):
         check_newer(args.version, args.build_number)
     save_json(state_path, journal)
