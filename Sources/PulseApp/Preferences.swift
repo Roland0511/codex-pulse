@@ -181,9 +181,9 @@ struct PreferencesView: View {
                     Spacer()
                     Button(tr("updates.check")) { updater.check() }.disabled(!updater.canCheck)
                 }
-                Toggle(tr("updates.autoChecks"), isOn: Binding(get: { updater.automaticallyChecks }, set: updater.setAutomaticChecks))
+                Toggle(tr("updates.autoChecks"), isOn: Binding(get: { updater.automaticallyChecks }, set: { updater.setAutomaticChecks($0) }))
                     .disabled(!updater.isAvailable)
-                Toggle(tr("updates.autoInstall"), isOn: Binding(get: { updater.automaticallyInstalls }, set: updater.setAutomaticInstalls))
+                Toggle(tr("updates.autoInstall"), isOn: Binding(get: { updater.automaticallyInstalls }, set: { updater.setAutomaticInstalls($0) }))
                     .disabled(!updater.isAvailable)
                 Text(tr(updater.isAvailable ? "updates.help" : "updates.unavailable")).font(.caption).foregroundStyle(.secondary)
                 if let version = updater.pendingVersion {
