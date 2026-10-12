@@ -42,6 +42,13 @@ import SwiftUI
         panel.contentView = NSHostingView(rootView: OverlayView(store: store, model: model))
         model.toggle = { [weak self] in self?.toggleDetails() }
         model.close = { [weak self] in self?.close() }
+        model.detailsSizeChanged = { [weak self] height in
+            guard let self, self.model.expanded,
+                  abs(self.model.width - DesignTokens.detailsWidth) < 0.5,
+                  abs(self.model.detailsIdealHeight - height) > 1 else { return }
+            self.model.detailsIdealHeight = height
+            self.resize(animated: true)
+        }
         model.togglePin = { [weak self] in self?.togglePin() }
         model.hover = { [weak self] entered in self?.hover(entered) }
         model.dragBegan = { [weak self] point in self?.beginDrag(point) }
@@ -195,8 +202,10 @@ import SwiftUI
     private func targetSize() -> CGSize {
         if model.expanded {
             let windows = store.state.snapshot?.windows.count ?? 0
-            let errors = store.state.error != nil || store.state.snapshot?.hasReachedLimit == true || store.state.snapshot?.ordinaryUsageAllowed == false
-            return CGSize(width: DesignTokens.detailsWidth, height: min(visibleFrame.height - 32, max(188, 142 + Double(max(1, windows)) * 48 + (errors ? 30 : 0))))
+            let estimate = DesignTokens.detailsSingleWindowHeight + Double(max(0, windows - 1)) * 80
+            let ideal = model.detailsIdealHeight > 0 ? model.detailsIdealHeight : estimate
+            return CGSize(width: DesignTokens.detailsWidth,
+                          height: min(visibleFrame.height - 32, max(DesignTokens.detailsSingleWindowHeight, ideal)))
         }
         return CGSize(width: model.compactWidth, height: DesignTokens.height)
     }

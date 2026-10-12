@@ -11,14 +11,23 @@ public struct QuotaWindow: Codable, Equatable, Identifiable, Sendable {
     public var remainingPercent: Double? { usedPercent.map { 100 - $0 } }
     public var name: String { localizedName(using: PulseText()) }
     public func localizedName(using text: PulseText) -> String {
-        let period: String
-        if let minutes = durationMinutes {
-            if minutes % 1440 == 0 { period = text.string("period.days", minutes / 1440) }
-            else if minutes % 60 == 0 { period = text.string("period.hours", minutes / 60) }
-            else { period = text.string("period.minutes", minutes) }
-        } else { period = text.string("quota.periodUnknown") }
         let bucket = bucketID == "demo" ? text.string("demo.bucket") : bucketName ?? bucketID
-        return "\(bucket) · \(period)"
+        return "\(bucket) · \(localizedPeriod(using: text))"
+    }
+    public func localizedPeriod(using text: PulseText) -> String {
+        if let minutes = durationMinutes {
+            if minutes % 1440 == 0 { return text.string("period.days", minutes / 1440) }
+            if minutes % 60 == 0 { return text.string("period.hours", minutes / 60) }
+            return text.string("period.minutes", minutes)
+        }
+        return text.string("quota.periodUnknown")
+    }
+    /// 单一默认额度桶不重复产品名；自定义桶名称仍用于区分不同额度。
+    public func detailName(using text: PulseText) -> String {
+        if bucketID == "demo" || (bucketID == "codex" && (bucketName == nil || bucketName?.lowercased() == "codex")) {
+            return localizedPeriod(using: text)
+        }
+        return localizedName(using: text)
     }
 
     public init(bucketID: String, bucketName: String? = nil, slot: String,
