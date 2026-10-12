@@ -91,9 +91,9 @@ struct OverlayView: View {
                                 DesignTokens.outlineWidth + (DesignTokens.peakOutlineWidth - DesignTokens.outlineWidth) * model.flash)
                     .allowsHitTesting(false)
             }
-            VStack(spacing: 0) {
-                header
+            Group {
                 if model.expanded { details }
+                else { header }
             }
             .clipShape(RoundedRectangle(cornerRadius: DesignTokens.outerRadius))
         }
@@ -180,69 +180,172 @@ struct OverlayView: View {
     }
 
     private var details: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Divider().overlay(palette.edge)
-            HStack {
-                Text(statusText).font(.system(size: 11, weight: .medium)).foregroundStyle(palette.muted)
-                    .lineLimit(1)
-                Spacer()
-                if store.refreshing {
-                    Text(tr("status.refreshing")).font(.system(size: 10)).foregroundStyle(palette.muted)
-                        .fixedSize()
+        VStack(spacing: DesignTokens.detailsSectionSpacing) {
+            detailHeader
+            ViewThatFits(in: .vertical) {
+                detailContent.fixedSize(horizontal: false, vertical: true)
+                ScrollView(.vertical) {
+                    detailContent.padding(.trailing, 8)
                 }
-            }
-            if model.consumptionDetected {
-                Label(model.consumptionMessage, systemImage: "sparkles")
-                    .font(.system(size: 9)).foregroundStyle(palette.signal).lineLimit(1)
-            }
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(store.state.snapshot?.windows ?? []) { window in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(alignment: .firstTextBaseline) {
-                                Text(window.localizedName(using: text)).font(.system(size: 11)).foregroundStyle(palette.muted)
-                                    .lineLimit(2).help(window.localizedName(using: text))
-                                Spacer(minLength: 6)
-                                Text(QuotaText.percentage(window.remainingPercent, using: text)).font(.system(size: 15, weight: .medium))
-                                    .monospacedDigit().fixedSize()
-                            }
-                            if let reset = window.resetsAt {
-                                Text(tr("quota.resetAt", text.date(reset)))
-                                    .font(.system(size: 10)).foregroundStyle(palette.muted)
-                            } else { Text(tr("quota.resetUnknown")).font(.system(size: 10)).foregroundStyle(palette.muted) }
-                        }.accessibilityElement(children: .combine)
-                    }
-                    if store.state.snapshot?.windows.isEmpty != false {
-                        Text(emptyWindowMessage)
-                            .font(.system(size: 11))
-                            .foregroundStyle(store.state.error == nil ? palette.muted : palette.warning)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }.frame(maxWidth: .infinity, alignment: .leading)
-            }.scrollIndicators(.automatic)
-            if let error = store.state.error, store.state.snapshot?.windows.isEmpty == false {
-                Text(error.message(using: text)).font(.system(size: 10)).foregroundStyle(palette.warning).fixedSize(horizontal: false, vertical: true)
-            }
-            if store.state.snapshot?.ordinaryUsageAllowed == false || store.state.snapshot?.hasReachedLimit == true {
-                Text(tr("quota.restricted")).font(.system(size: 10)).foregroundStyle(palette.warning)
-            }
-            if let count = store.state.snapshot?.availableResetCount {
-                Text(tr("quota.resetCount", count)).font(.system(size: 10)).foregroundStyle(palette.muted)
-            }
-            HStack {
-                if let date = store.state.snapshot?.fetchedAt {
-                    Text(tr("quota.updated", text.date(date, includesDate: false)))
-                        .font(.system(size: 9)).foregroundStyle(palette.muted)
-                }
-                Spacer()
-                Button(tr("refresh")) { store.refresh(manual: true) }.buttonStyle(.plain)
-                    .foregroundStyle(palette.signal).disabled(store.refreshing || store.demo)
-                    .focused($refreshFocused).keyboardShortcut("r", modifiers: [.command])
+                .scrollIndicators(.automatic)
             }
         }
-        .padding(.horizontal, 14).padding(.bottom, 12).foregroundStyle(palette.ink)
+        .padding(DesignTokens.detailsPadding)
+        .foregroundStyle(palette.ink)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onPreferenceChange(DetailContentHeight.self) { height in
+            model.detailsSizeChanged?(height + DesignTokens.detailsHeaderHeight +
+                DesignTokens.detailsSectionSpacing + 2 * DesignTokens.detailsPadding)
+        }
     }
+
+    private var detailHeader: some View {
+        HStack {
+            Text(store.demo ? tr("status.demo") : tr("status.remaining"))
+                .font(.system(size: 11, weight: .medium)).foregroundStyle(palette.muted)
+                .lineLimit(1)
+            Spacer(minLength: 92)
+        }
+        .frame(height: DesignTokens.detailsHeaderHeight)
+        .contentShape(Rectangle())
+        .overlay(DragSurface(model: model).accessibilityHidden(true))
+        .overlay(alignment: .trailing) {
+            HStack(spacing: 2) {
+                Button { store.refresh(manual: true) } label: {
+                    if store.refreshing {
+                        ProgressView().controlSize(.mini).frame(width: 24, height: 24)
+                    } else {
+                        Image(systemName: "arrow.clockwise").frame(width: 24, height: 24)
+                    }
+                }
+                .disabled(store.refreshing || store.demo)
+                .focused($refreshFocused).keyboardShortcut("r", modifiers: [.command])
+                .accessibilityLabel(store.refreshing ? tr("status.refreshing") : tr("refresh"))
+                .help(tr("refresh"))
+                if model.side != nil {
+                    Button { model.togglePin?() } label: {
+                        Image(systemName: model.pinned ? "pin.fill" : "pin").frame(width: 24, height: 24)
+                    }
+                    .foregroundStyle(model.pinned ? palette.signal : palette.muted)
+                    .accessibilityLabel(model.pinned ? tr("pin.unpin") : tr("pin"))
+                    .accessibilityValue(model.pinned ? tr("pin.on") : tr("pin.off"))
+                    .help(model.pinned ? tr("pin.unpin.hint") : tr("pin.hint"))
+                }
+                Button { model.close?() } label: {
+                    Image(systemName: "chevron.up").frame(width: 24, height: 24)
+                }
+                .accessibilityLabel(tr("details.collapse")).help(tr("details.collapse"))
+            }
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(palette.muted).buttonStyle(.borderless)
+        }
+    }
+
+    private var detailContent: some View {
+        VStack(alignment: .leading, spacing: DesignTokens.detailsSectionSpacing) {
+            if let snapshot = store.state.snapshot, !snapshot.windows.isEmpty {
+                VStack(spacing: DesignTokens.detailsRowSpacing) {
+                    ForEach(snapshot.windows) { window in quotaRow(window) }
+                }
+                if let error = store.state.error {
+                    Text(error.message(using: text))
+                        .font(.system(size: 11)).foregroundStyle(palette.warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                detailFooter
+            } else {
+                Text(emptyWindowMessage)
+                    .font(.system(size: 12))
+                    .foregroundStyle(store.state.error == nil ? palette.muted : palette.warning)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            GeometryReader { geometry in
+                Color.clear.preference(key: DetailContentHeight.self, value: geometry.size.height)
+            }
+        }
+    }
+
+    private func quotaRow(_ window: QuotaWindow) -> some View {
+        let color = windowTint(window)
+        let countdown = QuotaText.countdown(window.resetsAt, now: store.now, using: text, compact: true)
+        let exactReset = window.resetsAt.map { tr("quota.resetAt", text.date($0)) } ?? tr("quota.resetUnknown")
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(window.detailName(using: text))
+                        .font(.system(size: 12, weight: .medium)).foregroundStyle(palette.ink)
+                        .lineLimit(1).truncationMode(.tail).help(window.localizedName(using: text))
+                    Text(countdown).font(.system(size: 10)).foregroundStyle(palette.muted)
+                        .lineLimit(1).help(exactReset)
+                }
+                Spacer(minLength: 0)
+                Text(QuotaText.percentage(window.remainingPercent, using: text))
+                    .font(.system(size: 28, weight: .medium, design: .rounded)).monospacedDigit()
+                    .foregroundStyle(palette.ink).fixedSize()
+            }
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(palette.track)
+                    if let value = window.remainingPercent {
+                        ZStack {
+                            Capsule().fill(color)
+                            if model.consumptionAnimating, window.id == selected?.id, value > 0 {
+                                AnimatedConsumptionTrace(signal: palette.signal).accessibilityHidden(true)
+                            }
+                        }
+                        .frame(width: geometry.size.width * value / 100)
+                        .clipShape(Capsule())
+                        .animation(reduceMotion ? nil : .easeOut(duration: DesignTokens.barSeconds), value: value)
+                    }
+                }
+            }.frame(height: 2).accessibilityHidden(true)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(tr("quota.summary", statusText, window.localizedName(using: text),
+                              QuotaText.percentage(window.remainingPercent, using: text), countdown) + "，" + exactReset)
+    }
+
+    private func windowTint(_ window: QuotaWindow) -> Color {
+        guard store.status == .ready, !restricted, let value = window.remainingPercent else { return palette.muted }
+        return value <= 10 ? palette.danger : value <= 20 ? palette.warning : palette.signal
+    }
+
+    private var detailFooter: some View {
+        HStack(spacing: 8) {
+            if restricted || store.status == .stale || (store.status != .ready && store.state.error == nil) {
+                Label(statusText, systemImage: "exclamationmark.circle")
+                    .foregroundStyle(palette.warning)
+            } else if store.state.error != nil, let date = store.state.snapshot?.fetchedAt {
+                Text(tr("details.cached", date.formatted(.dateTime.hour().minute().locale(text.locale))))
+                    .foregroundStyle(palette.muted)
+            } else if model.consumptionDetected {
+                Label(model.consumptionMessage, systemImage: "sparkles")
+                    .foregroundStyle(palette.signal)
+            } else if let date = store.state.snapshot?.fetchedAt {
+                Text(tr("quota.updated", date.formatted(.dateTime.hour().minute().locale(text.locale))))
+                    .foregroundStyle(palette.muted)
+            }
+            Spacer(minLength: 0)
+            if let count = store.state.snapshot?.availableResetCount, count > 0 {
+                Text(tr("details.resetCount", count)).foregroundStyle(palette.muted)
+            }
+        }
+        .font(.system(size: 10)).lineLimit(1)
+        .padding(.top, 2)
+        .help(store.state.snapshot.map { tr("quota.updated", text.date($0.fetchedAt)) } ?? "")
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(store.state.snapshot.map { tr("quota.updated", text.date($0.fetchedAt)) } ?? "")
+    }
+
+}
+
+private struct DetailContentHeight: PreferenceKey {
+    static let defaultValue = 0.0
+    static func reduce(value: inout Double, nextValue: () -> Double) { value = max(value, nextValue()) }
 }
 
 struct DragSurface: NSViewRepresentable {

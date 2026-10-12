@@ -136,5 +136,8 @@
   "updates.unavailable": "Updates are available in installed release builds.",
   "updates.ready": "Version %@ is ready to install.",
   "updates.installNow": "Install and Relaunch",
-  "updates.readyHelp": "This update will install on quit. The switches above apply to future updates."
+  "updates.readyHelp": "This update will install on quit. The switches above apply to future updates.",
+  "details.collapse": "Collapse",
+  "details.resetCount": "%ld resets available",
+  "details.cached": "Cached at %@"
 }

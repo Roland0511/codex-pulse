@@ -5,8 +5,13 @@ public enum DesignTokens {
     public static let capsuleWidth: Double = 180
     public static let height: Double = 36
     public static let dockedWidth: Double = 54
-    public static let detailsWidth: Double = 264
+    public static let detailsWidth: Double = 280
     public static let dockedExpandedWidth: Double = 204
+    public static let detailsSingleWindowHeight: Double = 164
+    public static let detailsPadding: Double = 14
+    public static let detailsSectionSpacing: Double = 14
+    public static let detailsHeaderHeight: Double = 24
+    public static let detailsRowSpacing: Double = 16
     public static let joinRadius: Double = 8
     public static let outerRadius: Double = 10
     public static let outlineWidth: Double = 0.65

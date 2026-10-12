@@ -136,5 +136,8 @@
   "updates.unavailable": "请在安装的正式版本中使用更新功能。",
   "updates.ready": "版本 %@ 已下载，等待安装。",
   "updates.installNow": "安装并重新启动",
-  "updates.readyHelp": "此更新将在退出时安装。上方开关仅影响后续更新。"
+  "updates.readyHelp": "此更新将在退出时安装。上方开关仅影响后续更新。",
+  "details.collapse": "收起",
+  "details.resetCount": "可重置 %ld 次",
+  "details.cached": "缓存于 %@"
 }

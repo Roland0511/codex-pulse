@@ -27,6 +27,8 @@ import PulseCore
     }
     var toggle: (() -> Void)?
     var close: (() -> Void)?
+    var detailsIdealHeight = 0.0
+    var detailsSizeChanged: ((Double) -> Void)?
     var togglePin: (() -> Void)?
     var hover: ((Bool) -> Void)?
     var dragBegan: ((NSPoint) -> Void)?
