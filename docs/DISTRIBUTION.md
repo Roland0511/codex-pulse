@@ -78,7 +78,7 @@ python3 -m venv .build/packaging
   --notary-profile "codex-pulse-notary"
 ```
 
-默认版本 `0.1.3`、构建号 `5`、通用架构 `arm64 + x86_64`，最低 macOS 14。可用 `--version`、`--build-number`、`--architecture` 指定；自定义钥匙串通过 `--keychain` 指定，该路径同时用于签名和公证。Intel 架构编译不等于 Intel 实机验收。
+默认版本 `0.2.0`、构建号 `6`、通用架构 `arm64 + x86_64`，最低 macOS 14。可用 `--version`、`--build-number`、`--architecture` 指定；自定义钥匙串通过 `--keychain` 指定，该路径同时用于签名和公证。Intel 架构编译不等于 Intel 实机验收。
 
 流程依次构建两个架构、合并应用与 helper、去除调试符号、验证有效 Developer ID、签名 helper 及应用（Hardened Runtime、安全时间戳），上传 ZIP 公证，将票据附到 `.app` 并验证 Gatekeeper；再生成带 Applications 快捷入口的 DMG，只读挂载并验证其中应用 / helper 的严格全架构签名、应用票据及 Gatekeeper，卸载后再为 DMG 签名 / 公证 / 附票并验证。最终 ZIP 从已附票的应用生成。
 
@@ -138,3 +138,10 @@ python3 -m venv .build/packaging
 - ZIP SHA-256：`e0bb161e501afcfff192e0bbfc9cc2189295d1ac6f36896d5aad937995f2a6a2`。
 - 禁用凭据的公开仓库全新克隆与 Gitleaks 全历史扫描通过。本地报告位于忽略目录 `local-data/issue-1/`，未将真实账户响应、身份或公证凭据提交到 Git。
 - 未安装 / 覆盖本机应用，未重新验证 Intel 实机、Ultrafast、真实会话上下文、拖动、多屏或休眠恢复。
+
+
+## Sparkle 更新发布（v0.2.0 起）
+
+正式流程现在同时需要已配置的 Sparkle Ed25519 私钥（系统钥匙串账户 `dev.roland.codex-pulse`，公钥见 `Resources/Updates.json`）。构建会固定下载并嵌入 Sparkle 2.10.0，保留许可，分别签名更新 helper 和 framework，再签名应用；不把私钥或账号认证数据打入安装包。
+
+`package_release.py` 在两份安装包完成公证后自动创建、签名、验签 `appcast.xml`；SHA256SUMS.txt 同时列出 DMG、ZIP、feed。正式发布应先上传到 draft release，确认四个附件完整后再公开，避免用户请求到缺失清单。`SUFeedURL` 指向最新发布附件中的 appcast.xml。具体开关、安装时机与测试边界见 [UPDATES.md](UPDATES.md)。

@@ -6,6 +6,7 @@ import PulseCore
     private var store: QuotaStore!
     private var overlay: OverlayController!
     private var preferences: Preferences!
+    private var updater: AppUpdater!
     private var statusItem: NSStatusItem!
     private var shortcut: GlobalShortcut!
     private var observers: [NSObjectProtocol] = []
@@ -40,7 +41,8 @@ import PulseCore
         overlay = OverlayController(store: store)
         shortcut = GlobalShortcut(); shortcut.action = { [weak self] in self?.overlay.toggleVisible() }
         shortcut.escapeAction = { [weak self] in self?.overlay.close() }
-        preferences = Preferences(hotkey: shortcut, store: store, overlay: overlay)
+        updater = AppUpdater(enabled: !demo)
+        preferences = Preferences(hotkey: shortcut, store: store, overlay: overlay, updater: updater)
         overlay.model.$expanded.sink { [weak self] expanded in
             guard !demo else { return }
             if let message = self?.shortcut.watchEscape(expanded) { self?.preferences.message = message }
@@ -82,6 +84,7 @@ import PulseCore
     }
     @objc private func showExisting() { overlay?.show() }
     func menuWillOpen(_ menu: NSMenu) {
+        menu.autoenablesItems = false
         menu.removeAllItems()
         item(menu, overlay.visible ? tr("menu.hide") : tr("menu.show"), #selector(toggle), "")
         item(menu, tr("menu.details"), #selector(openDetails), "")
@@ -98,6 +101,7 @@ import PulseCore
             item(menu, preferences.activityConnection.installed ? tr("menu.activity", preferences.activityConnection.status) : tr("menu.enableActivity"), #selector(settings), "")
         }
         item(menu, tr("menu.settings", shortcut.choice.label), #selector(settings), ",")
+        item(menu, tr("updates.check"), #selector(checkForUpdates), "").isEnabled = updater?.canCheck == true
         item(menu, tr("menu.openCodex"), #selector(openCodex), "")
         menu.addItem(.separator())
         item(menu, tr("menu.quit"), #selector(quit), "q")
@@ -114,6 +118,7 @@ import PulseCore
     @objc private func reminders() { store.enableReminders(!store.remindersEnabled) }
     @objc private func launchAtLogin() { preferences.setLaunch(!preferences.launchEnabled) }
     @objc private func settings() { preferences.show() }
+    @objc private func checkForUpdates() { updater.check() }
     @objc private func openCodex() {
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.openai.codex") {
             NSWorkspace.shared.openApplication(at: url, configuration: .init()) { _, _ in }

@@ -14,6 +14,7 @@ import tempfile
 
 from build_app import sign, signing_identity
 from artwork import generate as generate_artwork
+from update_feed import generate as generate_feed, verify_key
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -72,6 +73,9 @@ def package(args):
         raise ValueError("准备候选不会使用签名 / 公证凭据，不接受这些参数")
     if importlib.util.find_spec("dmgbuild") is None:
         raise ValueError("缺少 DMG 构建依赖。请按 docs/DISTRIBUTION.md 创建独立构建环境并安装 scripts/requirements-packaging.txt。")
+    if not args.prepare_only:
+        run("swift", "package", "resolve")
+        verify_key()
     # 在任何构建或上传前记录源码状态，避免中途修改文档影响来源判定。
     source_commit = run("git", "rev-parse", "HEAD", capture=True).strip()
     source_dirty = bool(run("git", "status", "--porcelain", capture=True).strip())
@@ -131,6 +135,8 @@ def package(args):
                 "status": label, "notarized": not args.prepare_only, "submissions": submissions, "sha256": checksums,
                 "sourceCommit": source_commit, "sourceDirty": source_dirty}
     (folder / "release.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    if not args.prepare_only:
+        generate_feed(folder)
     print("分发目录：", folder)
     print("状态：", "准备候选，ad-hoc / 未公证，不是正式分发包" if args.prepare_only else "Developer ID / 公证 / 票据 / Gatekeeper 均通过")
 
@@ -142,8 +148,8 @@ def main():
     parser.add_argument("--notary-profile", help="已在 notarytool 钥匙串保存的配置名，不传密码")
     parser.add_argument("--keychain", help="可选签名及公证钥匙串路径")
     parser.add_argument("--architecture", choices=["arm64", "x86_64", "universal"], default="universal")
-    parser.add_argument("--version", default="0.1.3")
-    parser.add_argument("--build-number", default="5")
+    parser.add_argument("--version", default="0.2.0")
+    parser.add_argument("--build-number", default="6")
     args = parser.parse_args()
     if not re.fullmatch(r"\d+\.\d+\.\d+", args.version) or not re.fullmatch(r"[1-9]\d*", args.build_number):
         parser.error("version 必须为三段数字，build-number 必须为正整数")
