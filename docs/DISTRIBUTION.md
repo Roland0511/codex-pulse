@@ -1,6 +1,6 @@
 # macOS 手动分发
 
-2026-10-12 当前公开分发：[v0.1.2 / build 4](https://github.com/Roland0511/codex-pulse/releases/tag/v0.1.2)，修复 issue #1 的共享模型缓存写入副作用，提供通用架构 DMG、ZIP 与 SHA-256。应用从干净公开源码 `2b04f11` 构建，应用及 DMG 均获 Apple 公证 Accepted；签名、票据、Gatekeeper、ZIP 解压及 DMG 挂载副本独立复核通过。Intel 已交叉编译，未新增 Intel 实机或桌面交互验收；未替用户安装。历史交付记录保留如下。
+2026-10-13 当前公开分发：[v0.1.3 / build 5](https://github.com/Roland0511/codex-pulse/releases/tag/v0.1.3)。PR #4 已合并，修复历史回填导致的初始化超时，并保留共享模型缓存保护。通用架构应用及 DMG 均获 Apple 公证 Accepted，签名、票据、Gatekeeper、最终 ZIP / DMG 独立验证通过；公开附件匿名下载逐字节一致。本机已从公开 ZIP 升级并核对额度、手动刷新和工作特效连接。Intel 已交叉编译，未新增 Intel 实机、多屏或真实休眠验收。
 
 历史交付状态：2026-10-10 v0.1.0（构建 2）正式手动分发包完成，包含完整应用图标和中文拖放安装界面，已在真实 Finder 中确认。应用及 DMG 均通过 Developer ID 签名、Apple 公证、票据及 Gatekeeper；最终 ZIP 解压、DMG 包内应用只读核验和 SHA-256 独立复核通过。支持 arm64 / x86_64，最低 macOS 14；Intel 和旧系统仅完成编译，未做实机运行验收。
 
@@ -14,9 +14,18 @@
 
 构建 1 保留为历史交付。首份美化构建 `0.1.0-2-20261010-000817` 虽获 Apple Accepted，但包内应用严格签名失败，已标记 `WITHDRAWN.txt`，不得分发；本次修复后的独立容器核验已通过。详细原因和验证边界见 [验证记录](VERIFICATION.md)。
 
-## v0.1.3 / build 5 发布准备（2026-10-13）
+## v0.1.3 / build 5 正式发布（2026-10-13）
 
-PR #4 已合并，修复重复回填导致的额度及 hooks 初始化超时。此次按用户要求构建、签名公证、公开发布并更新本机应用；完成状态和校验值待实际验证后记录。
+- [PR #4](https://github.com/Roland0511/codex-pulse/pull/4) 已合并，issue #3 已随合并关闭。正式发布地址见页首。
+- 干净源码 `e56699798abc4fab1cd8190e2a7f2591aa4d97e8`，签名 tag `v0.1.3` 指向该提交，`sourceDirty=false`；发布构建 CI [38275567384](https://github.com/Roland0511/codex-pulse/actions/runs/38275567384) 通过，含 80 项 Swift 回归。后续提交仅更新交付文档。
+- 产物目录 `dist/releases/0.1.3-5-20261013-001044/`；应用和 helper 均为 `arm64 + x86_64`。Apple 对应用和 DMG 分别返回 Accepted；两者附票、严格全架构签名及 Gatekeeper 验证通过。
+- 最终 ZIP 解压副本、只读挂载 DMG 内应用独立复核通过；十种图标表示、双语画布及 Finder 布局、固定模型目录与源码一致性、无本机开发路径和凭据标记检查通过，临时挂载已卸载。
+- 公开附件仅为 DMG（2,662,169 bytes）、ZIP（1,966,284 bytes）和 SHA256SUMS.txt（214 bytes）。禁用认证后匿名重新下载，三者逐字节一致；公开仓库重新克隆、tag 对应提交和全历史 Gitleaks 扫描通过。
+- DMG SHA-256：`2800df6d39bf91f5ecb697f42056553caebabc5458cc3c852789a3a4f55b1e94`。
+- ZIP SHA-256：`1b1eb36d7935a8ffed9f5c5aed8f4f2368b1ef9d44cafd05db1b10ac617a0d01`。
+- 本机应用由公开 ZIP 更新为 0.1.3 / build 5，旧应用留在忽略目录 `local-data/issue-3/install-backup/`，可回退。安装后签名、票据、Gatekeeper 通过，应用二进制与发布文件一致，单实例运行。
+- 原生界面确认额度读取、手动刷新更新时间、工作状态文本及「已启用，连接就绪」。原有 hooks 和已安装 helper 字节不变，通知 / 开机启动保持关闭，工作特效保持开启，语言 / 外观 / 快捷键保持原选择。验收展开详情后曾改写垂直位置，随后只恢复原 `overlayPosition` 并重启；未重装 hooks 或改写信任。
+- 技术、安装与本次原生界面检查仅覆盖以上内容；未将它们当作多屏、拖动、动画全矩阵、Intel 或真实休眠恢复验收。
 
 ## 签名准备
 

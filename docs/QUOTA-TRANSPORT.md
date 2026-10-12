@@ -14,7 +14,7 @@ v0.1.2 把 SQLite 和一次性模型 / 日志目录一起清理，导致下一�
 - 10 秒空闲回收、轮询、手动刷新和唤醒路径不变。每次仍启动短生命周期 helper，但不再丢弃已完成的历史回填。数据库损坏或不兼容时报告失败，不自动删除状态或退回主数据库。
 - `scripts/probe.py` 使用同样的命名、目录权限、排他锁和两级超时；npm 包装脚本先解析为原生 CLI，避免诊断与应用落入不同数据库。可通过 `--state-root` 为合成验证单独指定目录。
 
-验收记录见 [VERIFICATION.md](VERIFICATION.md)。此段描述源码修复，不代表 v0.1.2 安装包已经更新。首次回填仍有成本；本次没有通过后台常驻服务规避它。
+验收记录见 [VERIFICATION.md](VERIFICATION.md)。修复已随 [v0.1.3 / build 5](https://github.com/Roland0511/codex-pulse/releases/tag/v0.1.3) 正式发布并完成本机升级；旧 v0.1.2 安装包不含此修复。首次回填仍有成本；本次没有通过后台常驻服务规避它。
 
 ## 为什么用 App Server
 

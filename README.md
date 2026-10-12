@@ -8,7 +8,7 @@ Codex Pulse keeps your **remaining Codex quota and reset countdown** within reac
 
 Built with SwiftUI and AppKit. Quota comes from the official local Codex App Server. The app does not read your conversations.
 
-**[v0.1.2](https://github.com/Roland0511/codex-pulse/releases/tag/v0.1.2) fixes quota-service startup overwriting Codex's shared model cache** ([issue #1](https://github.com/Roland0511/codex-pulse/issues/1)). Upgrade from v0.1.1 for the bundled static catalog and private runtime directories. [Fix and verification notes](docs/QUOTA-TRANSPORT.md).
+**[v0.1.3](https://github.com/Roland0511/codex-pulse/releases/tag/v0.1.3) fixes repeated initialization timeouts on Macs with a large Codex history** ([issue #3](https://github.com/Roland0511/codex-pulse/issues/3)). It reuses a private database and allows a bounded first initialization, while preserving v0.1.2’s shared model-cache protection. [Fix and verification notes](docs/QUOTA-TRANSPORT.md).
 
 ## A little presence, useful detail
 
@@ -54,7 +54,7 @@ Low quota alerts and launch at login are also **off by default**. Notification p
 - **No Pulse backend or analytics.** Snapshots stay in memory. Preferences, hook backups, and alert deduplication stay on your Mac.
 - **No account actions.** Pulse does not reset quota, buy credits, sign you out, or control agents.
 
-Following Codex appearance reads a small allowlist of theme settings. Enabling work animation explicitly changes local hook configuration. Quota RPCs are read-only; current source also prevents startup model-catalog refreshes and places databases and logs in private temporary directories. Authentication stays with the official CLI.
+Following Codex appearance reads a small allowlist of theme settings. Enabling work animation explicitly changes local hook configuration. Quota RPCs are read-only; startup model-catalog refreshes are disabled. The official CLI may backfill a private session-metadata index in `~/Library/Application Support/CodexPulse/QuotaState/`; it is retained across launches to avoid repeated history scans. Model-catalog copies and logs remain temporary. Authentication stays with the official CLI.
 
 ## Build it yourself
 
