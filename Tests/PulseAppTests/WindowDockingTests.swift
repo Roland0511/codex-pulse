@@ -53,6 +53,10 @@ import Testing
         source.items = [CodexWindow(id: 80, frame: CGRect(x: 100, y: 100, width: 700, height: 500), isOnScreen: true)]
         overlay.syncCodexWindow()
         #expect(overlay.attachedWindow?.id == 80 && overlay.panel.isVisible)
+        source.items = [CodexWindow(id: 80, frame: CGRect(x: 100_000, y: 100_000, width: 800, height: 600), isOnScreen: true)]
+        overlay.syncCodexWindow(); overlay.open(); overlay.placeInCodex(.left)
+        #expect(!overlay.panel.isVisible)
+        #expect(overlay.panel.frame.minX.isFinite && overlay.panel.frame.minY.isFinite)
         overlay.place(.left)
         #expect(overlay.windowDock == nil && overlay.attachedWindow == nil)
         #expect(LocalDefaults.store.data(forKey: "codexWindowDock") == nil)

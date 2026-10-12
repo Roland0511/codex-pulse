@@ -361,6 +361,7 @@ enum DockDestination { case screen, codex }
         var size = targetSize()
         let original = bodyFrame
         let visible = attachedWindow?.frame.intersection(visibleFrame) ?? visibleFrame
+        guard !visible.isNull, !visible.isEmpty else { return }
         size.width = min(size.width, visible.width); size.height = min(size.height, visible.height)
         let right = model.side == .right, left = model.side == .left
         var target = CGRect(origin: original.origin, size: size)

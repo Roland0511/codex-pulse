@@ -71,5 +71,11 @@ import Foundation
         #expect(screenOnly.window == nil && screenOnly.screen.side == .left && !screenOnly.requiresChoice)
         let outside = DockingProposal(intended: CGRect(x: 0, y: 300, width: 180, height: 36), visible: screen, window: screen.offsetBy(dx: -20, dy: 0), travel: 32)
         #expect(outside.window == nil)
+        for host in [CGRect(x: 1010, y: 100, width: 800, height: 600),
+                     CGRect(x: 980, y: 100, width: 800, height: 600)] {
+            let acrossDisplay = DockingProposal(intended: CGRect(x: 900, y: 300, width: 180, height: 36),
+                visible: screen, window: host, travel: 32, pointer: CGPoint(x: 995, y: 318))
+            #expect(acrossDisplay.window == nil && !acrossDisplay.requiresChoice)
+        }
     }
 }
