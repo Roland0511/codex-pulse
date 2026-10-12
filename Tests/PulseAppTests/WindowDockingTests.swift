@@ -72,7 +72,8 @@ import Testing
         let model = OverlayModel(motionPreference: { true })
         let overlay = OverlayController(store: store, model: model, windowSource: source)
         defer { overlay.stop(); store.stop() }
-        for choice: DockDestination? in [.screen, .codex, nil] {
+        let choices: [DockDestination?] = [.screen, .codex, nil]
+        for (choice, offset) in choices.flatMap({ choice in [10.0, 90.0].map { (choice, $0) } }) {
             overlay.place(nil)
             var prompts = 0
             overlay.dockTargetChooser = { screenSide, windowSide in
@@ -81,7 +82,7 @@ import Testing
             }
             let body = overlay.panel.frame.insetBy(dx: 16, dy: 16)
             model.dragBegan?(CGPoint(x: body.midX, y: body.midY))
-            model.dragMoved?(CGPoint(x: screen.minX + 90, y: screen.midY))
+            model.dragMoved?(CGPoint(x: screen.minX + offset, y: screen.midY))
             #expect(model.side == nil) // Ambiguous drag never preselects a host.
             model.dragEnded?()
             #expect(prompts == 1)

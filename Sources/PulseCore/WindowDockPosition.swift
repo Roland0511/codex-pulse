@@ -29,8 +29,10 @@ public struct WindowDockPosition: Codable, Equatable, Sendable {
 
     public static func attachment(intended: CGRect, window: CGRect, travel: Double) -> Attachment? {
         guard intended.midY >= window.minY, intended.midY <= window.maxY,
-              window.width >= intended.width, window.height >= intended.height else { return nil }
-        let left = abs(intended.minX - window.minX), right = abs(window.maxX - intended.maxX)
+              window.width >= intended.width, window.height >= intended.height,
+              intended.maxX > window.minX, intended.minX < window.maxX else { return nil }
+        // Match display docking when the pointer carries part of the capsule past an edge.
+        let left = intended.minX - window.minX, right = window.maxX - intended.maxX
         let gap = min(left, right)
         guard gap <= travel else { return nil }
         let p = min(1, max(0, 1 - gap / travel))

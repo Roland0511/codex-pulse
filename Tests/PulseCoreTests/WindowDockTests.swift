@@ -11,7 +11,9 @@ import Foundation
         let right = WindowDockPosition.attachment(intended: CGRect(x: 704, y: 400, width: 180, height: 36), window: window, travel: 32)
         #expect(left?.side == .left && right?.side == .right && left?.progress == right?.progress)
         #expect(left?.progress == 0.5)
-        for origin in [CGPoint(x: 66, y: 400), CGPoint(x: 134, y: 400), CGPoint(x: 100, y: 850)] {
+        let overshot = WindowDockPosition.attachment(intended: CGRect(x: 40, y: 400, width: 180, height: 36), window: window, travel: 32)
+        #expect(overshot?.side == .left && overshot?.progress == 1)
+        for origin in [CGPoint(x: -100, y: 400), CGPoint(x: 134, y: 400), CGPoint(x: 100, y: 850)] {
             #expect(WindowDockPosition.attachment(intended: CGRect(origin: origin, size: CGSize(width: 180, height: 36)), window: window, travel: 32) == nil)
         }
     }
@@ -55,7 +57,7 @@ import Foundation
     @Test func maximizedOrNearbyWindowRequiresChoiceOnBothSides() {
         for inset in [0.0, 20.0] {
             let window = screen.insetBy(dx: inset, dy: inset)
-            for x in [0.0, 820.0] {
+            for x in [-90.0, 0.0, 820.0, 910.0] {
                 let proposal = DockingProposal(intended: CGRect(x: x, y: 300, width: 180, height: 36), visible: screen, window: window, travel: 32)
                 #expect(proposal.requiresChoice)
             }

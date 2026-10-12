@@ -275,7 +275,7 @@ enum DockDestination { case screen, codex }
         let candidate = windowSource.windows(matching: nil).first {
             $0.isOnScreen && $0.frame.insetBy(dx: -DesignTokens.attachmentTravel, dy: 0).contains(point)
         }
-        let proposal = DockingProposal(intended: intended, visible: visible, window: candidate?.frame, travel: DesignTokens.attachmentTravel)
+        let proposal = DockingProposal(intended: intended, visible: visible, window: candidate?.frame, travel: DesignTokens.attachmentTravel, pointer: point)
         dragProposal = proposal; dragWindow = candidate; dragIntended = intended
         if proposal.requiresChoice {
             // Do not preview either target as selected before the user chooses.
