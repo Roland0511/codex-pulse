@@ -1,6 +1,6 @@
 # macOS 手动分发
 
-2026-10-13 当前公开分发：[v0.2.0 / build 6](https://github.com/Roland0511/codex-pulse/releases/tag/v0.2.0)。新增签名更新检查和自动升级；本机已安装并完成真实升级链路验收。通用架构应用及 DMG 的 Apple 公证、签名、票据和 Gatekeeper 通过，ZIP / DMG 内应用、Sparkle 嵌套代码及公开下载独立核验通过。历史交付记录保留如下。
+2026-10-13 当前公开分发：[v0.2.2 / build 8](https://github.com/Roland0511/codex-pulse/releases/tag/v0.2.2)。展开卡片完成精简和点击区域修复；自动发布流程已执行真实发布，本机通过应用内更新安装。应用与 DMG 的 Apple 公证、签名、票据、Gatekeeper，以及公开附件和更新清单校验通过。历史交付记录保留如下。
 
 历史交付状态：2026-10-10 v0.1.0（构建 2）正式手动分发包完成，包含完整应用图标和中文拖放安装界面，已在真实 Finder 中确认。应用及 DMG 均通过 Developer ID 签名、Apple 公证、票据及 Gatekeeper；最终 ZIP 解压、DMG 包内应用只读核验和 SHA-256 独立复核通过。支持 arm64 / x86_64，最低 macOS 14；Intel 和旧系统仅完成编译，未做实机运行验收。
 
@@ -160,3 +160,15 @@ python3 -m venv .build/packaging
 - appcast.xml SHA-256：`ca811fbf3dba36183656ca220ab6942f405494493ca6c0f105c368e77696d23c`。
 - 本机已安装正式版本；独立低版本测试包的手动安装重启、自动下载与退出自动安装全部完成，详见 [UPDATES.md](UPDATES.md)。Intel 仍仅交叉编译，未新增 Intel 实机验收。
 - 首轮 Swift 6.1 编译失败对应的旧候选 `0.2.0-6-20261013-002306/` 已标记 WITHDRAWN，未公开分发；不能与正式产物混用。
+
+## v0.2.2 / build 8（2026-10-13）
+
+- 来源 `9a944dd8321103614bb68d6ee3d7e5b3add161b4`，main CI 38281949929 通过，源码干净。PR #7 为卡片改版，后续提交修复原生拖动层与按钮的点击区域。
+- `scripts/release.py` 完成签名 tag、草稿上传、公开及匿名下载校验，四个附件与本地产物一致，Latest 更新清单已同步。
+- 应用、DMG 均为 Apple Accepted；包内应用与 Sparkle 嵌套代码、双架构、票据和 Gatekeeper 独立核验通过。
+- `CodexPulse-0.2.2-universal-notarized.dmg` SHA-256：`fa07c82dda69f106a9f40e2ccd327e6da510ed032e423405644c187ba879eb50`。
+- `CodexPulse-0.2.2-universal-notarized.zip` SHA-256：`36df53abc53c33525f408d15401c0e894779740df4b69339b0aa242c7194c4f9`。
+- `appcast.xml` SHA-256：`05acaf289bde5e0565fd06b6d3b4b3f2a67a3197f8c4cf0176e74b73eacafa6a`。
+
+- 本机通过 Sparkle 从 0.2.1 升级到 0.2.2；安装后的二进制与正式包一致，签名 / Gatekeeper 通过，语言、外观、快捷键、图钉及自动更新偏好语义保持不变。
+- 首次 0.2.1 草稿查询失败发生在公开前；空草稿已归档后撤回，旧产物标记 WITHDRAWN。发布器改为按发行 ID 读取草稿，并增加回归测试。后续两次公开发布均走修复后的校验流程。

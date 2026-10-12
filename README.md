@@ -8,7 +8,7 @@ Codex Pulse keeps your **remaining Codex quota and reset countdown** within reac
 
 Built with SwiftUI and AppKit. Quota comes from the official local Codex App Server. The app does not read your conversations.
 
-**[v0.2.0](https://github.com/Roland0511/codex-pulse/releases/tag/v0.2.0) adds Check for Updates and optional automatic upgrades.** Signed update feeds and archives are verified before installation. Version 0.1.3 and earlier need one manual upgrade to this release. [Update guide](docs/UPDATES.md).
+**[v0.2.2](https://github.com/Roland0511/codex-pulse/releases/tag/v0.2.2) refines the expanded quota card:** fewer repeated details, content-fitting height, and separate header controls. Signed automatic updates are supported. Version 0.1.3 and earlier need one manual upgrade. [Update guide](docs/UPDATES.md).
 
 ## A little presence, useful detail
 
