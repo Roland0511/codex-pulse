@@ -144,8 +144,8 @@ def main():
     parser.add_argument("--architecture", choices=["native", "arm64", "x86_64", "universal"], default="native")
     parser.add_argument("--portable", action="store_true", help="不写入本机 CLI 路径；正式签名时自动生效")
     parser.add_argument("--output-dir", type=pathlib.Path, default=ROOT / "dist")
-    parser.add_argument("--version", default="0.2.2")
-    parser.add_argument("--build-number", default="8")
+    parser.add_argument("--version", default="0.3.0")
+    parser.add_argument("--build-number", default="9")
     args = parser.parse_args()
     if not re.fullmatch(r"\d+\.\d+\.\d+", args.version) or not re.fullmatch(r"[1-9]\d*", args.build_number):
         parser.error("version 必须为三段数字，build-number 必须为正整数")

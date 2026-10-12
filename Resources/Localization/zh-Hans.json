@@ -106,8 +106,8 @@
   "menu.details": "展开额度详情",
   "menu.refresh": "刷新额度",
   "menu.center": "移到屏幕中央",
-  "menu.left": "吸附左侧",
-  "menu.right": "吸附右侧",
+  "menu.left": "屏幕左侧",
+  "menu.right": "屏幕右侧",
   "menu.position": "位置",
   "menu.activity": "工作特效：%@…",
   "menu.enableActivity": "启用工作特效…",
@@ -139,5 +139,8 @@
   "updates.readyHelp": "此更新将在退出时安装。上方开关仅影响后续更新。",
   "details.collapse": "收起",
   "details.resetCount": "可重置 %ld 次",
-  "details.cached": "缓存于 %@"
+  "details.cached": "缓存于 %@",
+  "menu.codexLeft": "Codex 窗口左内侧",
+  "menu.codexRight": "Codex 窗口右内侧",
+  "dock.chooseTarget": "选择吸附对象"
 }

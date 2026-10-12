@@ -10,11 +10,17 @@ import SwiftUI
     override func cancelOperation(_ sender: Any?) { (delegate as? OverlayController)?.close() }
 }
 
+enum DockDestination { case screen, codex }
+
 @MainActor final class OverlayController: NSObject, NSWindowDelegate {
     let model: OverlayModel
     let store: QuotaStore
     let panel: PulsePanel
     private var bodyFrame = CGRect.zero
+    private let windowSource: any CodexWindowSource
+    private var windowTracking: Task<Void, Never>?
+    private(set) var windowDock: WindowDockPosition?
+    private(set) var attachedWindow: CodexWindow?
     private var screen: NSScreen?
     private var animation: Task<Void, Never>?
     private var leaveTask: Task<Void, Never>?
@@ -27,10 +33,16 @@ import SwiftUI
     private var startPoint: NSPoint?
     private var startFrame = CGRect.zero
     private var moved = false
+    private var dragProposal: DockingProposal?
+    private var dragWindow: CodexWindow?
+    private var dragIntended = CGRect.zero
+    private var selectedDockTarget: DockDestination?
+    var dockTargetChooser: ((DockSide, DockSide) -> DockDestination?)?
     private(set) var visible = true
 
-    init(store: QuotaStore, model: OverlayModel = OverlayModel()) {
+    init(store: QuotaStore, model: OverlayModel = OverlayModel(), windowSource: (any CodexWindowSource)? = nil) {
         self.store = store; self.model = model
+        self.windowSource = windowSource ?? SystemCodexWindowSource()
         panel = PulsePanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         super.init()
         panel.title = "Codex Pulse"
@@ -102,8 +114,20 @@ import SwiftUI
         model.width = targetSize().width
         bodyFrame = position.frame(in: visibleFrame, size: CGSize(width: model.width, height: model.height))
         applyFrame(bodyFrame)
+        windowDock = LocalDefaults.store.data(forKey: "codexWindowDock").flatMap {
+            try? JSONDecoder().decode(WindowDockPosition.self, from: $0)
+        }
+        if let windowDock {
+            model.side = windowDock.side; model.blend = 1
+            syncCodexWindow(); startWindowTracking()
+        }
     }
     private func save() {
+        if let windowDock {
+            if let data = try? JSONEncoder().encode(windowDock) { LocalDefaults.store.set(data, forKey: "codexWindowDock") }
+            return // Preserve the independent screen placement while attached to Codex.
+        }
+        LocalDefaults.store.removeObject(forKey: "codexWindowDock")
         guard let screen else { return }
         let position = OverlayPosition.capture(frame: bodyFrame, visible: screen.visibleFrame, screenID: screenID(screen), side: model.side)
         if let data = try? JSONEncoder().encode(position) { LocalDefaults.store.set(data, forKey: "overlayPosition") }
@@ -111,12 +135,15 @@ import SwiftUI
 
     func show(keyboard: Bool = false) {
         visible = true; store.hidden = false
-        panel.orderFrontRegardless()
+        if windowDock != nil {
+            if keyboard { windowSource.activate() }
+            syncCodexWindow(); startWindowTracking()
+        } else { panel.orderFrontRegardless() }
         recordInteraction("show", point: .zero)
         updateConsumption()
         if keyboard { open(keyboard: true) }
     }
-    func hide() { close(); stopConsumption(); visible = false; store.hidden = true; panel.orderOut(nil) }
+    func hide() { close(); stopConsumption(); visible = false; store.hidden = true; windowTracking?.cancel(); panel.orderOut(nil) }
     func toggleVisible() { if visible { hide() } else { show() } }
     func toggleDetails() { if model.expanded { close() } else { open() } }
     func open(keyboard: Bool = false) {
@@ -144,11 +171,71 @@ import SwiftUI
         resize(animated: true)
     }
     func place(_ side: DockSide?) {
+        windowTracking?.cancel(); windowDock = nil; attachedWindow = nil
+        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenNone]
         model.side = side; model.blend = side == nil ? 0 : 1
         model.expanded = false; model.hovered = false
         if side == nil { bodyFrame.origin.x = visibleFrame.midX - DesignTokens.capsuleWidth / 2 }
         resize(animated: true); save()
+        if visible { store.hidden = false; panel.orderFrontRegardless() }
     }
+
+    var canDockToCodex: Bool { windowSource.windows(matching: nil).contains { $0.isOnScreen } }
+
+    func placeInCodex(_ side: DockSide) {
+        guard let window = windowSource.windows(matching: nil).first(where: { $0.isOnScreen }) else { return }
+        close()
+        attachedWindow = window
+        windowDock = WindowDockPosition(side: side, y: 0.15)
+        model.side = side; model.blend = 1; model.hovered = false
+        visible = true
+        windowSource.activate()
+        syncCodexWindow(); resize(animated: false); save(); startWindowTracking()
+    }
+
+    private func startWindowTracking() {
+        windowTracking?.cancel()
+        guard windowDock != nil, visible else { return }
+        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
+        windowTracking = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                let active = self?.pollCodexWindow() ?? false
+                do { try await Task.sleep(for: .milliseconds(active ? 50 : 500)) } catch { return }
+            }
+        }
+    }
+
+    private func pollCodexWindow() -> Bool {
+        syncCodexWindow()
+        return windowSource.isCodexActive && attachedWindow?.isOnScreen == true && visible
+    }
+
+    /// Refresh only the selected window; reselect after it closes or Codex restarts.
+    func syncCodexWindow() {
+        guard windowDock != nil, startPoint == nil else { return }
+        let previous = attachedWindow
+        let existing = attachedWindow.flatMap { windowSource.windows(matching: $0.id).first }
+        attachedWindow = existing ?? windowSource.windows(matching: nil).first(where: { $0.isOnScreen })
+        if let window = attachedWindow {
+            let eligible = NSScreen.screens.filter {
+                windowDock?.frame(in: window.frame, visible: $0.visibleFrame, size: targetSize(), compactHeight: DesignTokens.height) != nil
+            }
+            screen = (eligible.isEmpty ? NSScreen.screens : eligible).max {
+                $0.frame.intersection(window.frame).area < $1.frame.intersection(window.frame).area
+            } ?? screen
+        }
+        let display = visible && attachedWindow?.isOnScreen == true && (windowSource.isCodexActive || panel.isKeyWindow)
+        let frame = attachedWindow.flatMap { windowDock?.frame(in: $0.frame, visible: visibleFrame, size: targetSize(), compactHeight: DesignTokens.height) }
+        guard display, frame != nil else {
+            if panel.isVisible { close(); panel.orderOut(nil); stopConsumption() }
+            store.hidden = true
+            return
+        }
+        if previous != attachedWindow || !panel.isVisible { resize(animated: false) }
+        store.hidden = false
+        if !panel.isVisible { panel.orderFrontRegardless(); updateConsumption() }
+    }
+
     private func hover(_ entered: Bool) {
         leaveTask?.cancel()
         guard startPoint == nil else { return }
@@ -164,13 +251,14 @@ import SwiftUI
     private func beginDrag(_ point: NSPoint) {
         recordInteraction("drag-began", point: point)
         leaveTask?.cancel(); animation?.cancel()
-        startPoint = point; startFrame = bodyFrame; moved = false
+        startPoint = point; startFrame = bodyFrame; moved = false; dragProposal = nil; dragWindow = nil
     }
     private func drag(_ point: NSPoint) {
         recordInteraction("drag-moved", point: point)
         guard let startPoint else { return }
         let dx = point.x - startPoint.x, dy = point.y - startPoint.y
         if !moved && hypot(dx, dy) < DesignTokens.dragThreshold { return }
+        windowTracking?.cancel(); windowDock = nil; attachedWindow = nil
         moved = true; model.expanded = false; model.keyboardOpened = false; panel.keyboardEnabled = false
         // 从标签拖动时以当前指针抓取比例转换到自由胶囊，避免跳到指针另一侧。
         let grab = min(1, max(0, (startPoint.x - startFrame.minX) / max(1, startFrame.width)))
@@ -178,8 +266,28 @@ import SwiftUI
                               y: startFrame.minY + dy + startFrame.height - DesignTokens.height,
                               width: DesignTokens.capsuleWidth, height: DesignTokens.height)
         screen = NSScreen.screens.first(where: { $0.frame.contains(point) }) ?? screen
-        let visible = visibleFrame
-        let attachment = Attachment.calculate(intended: intended, visible: visible, travel: DesignTokens.attachmentTravel)
+        var visible = visibleFrame
+        // Keep both candidates when the host and display edges overlap.
+        let candidate = windowSource.windows(matching: nil).first {
+            $0.isOnScreen && $0.frame.insetBy(dx: -DesignTokens.attachmentTravel, dy: 0).contains(point)
+        }
+        let proposal = DockingProposal(intended: intended, visible: visible, window: candidate?.frame, travel: DesignTokens.attachmentTravel)
+        dragProposal = proposal; dragWindow = candidate; dragIntended = intended
+        if proposal.requiresChoice {
+            // Do not preview either target as selected before the user chooses.
+            model.side = nil; model.blend = 0
+            var frame = intended
+            frame.origin.x = min(visible.maxX - frame.width, max(visible.minX, frame.minX))
+            frame.origin.y = min(visible.maxY - frame.height, max(visible.minY, frame.minY))
+            model.width = frame.width; model.height = frame.height; applyFrame(frame)
+            return
+        }
+        if let candidate, let side = proposal.window?.side {
+            attachedWindow = candidate
+            windowDock = .capture(side: side, frame: intended, window: candidate.frame, compactHeight: DesignTokens.height)
+            visible = candidate.frame.intersection(visibleFrame)
+        }
+        let attachment = proposal.window ?? proposal.screen
         model.side = attachment.side; model.blend = attachment.progress
         var frame = intended
         if model.side == .left { frame.origin.x = visible.minX }
@@ -193,12 +301,47 @@ import SwiftUI
         guard startPoint != nil else { return }
         startPoint = nil
         if moved {
+            if let proposal = dragProposal, proposal.requiresChoice,
+               let screenSide = proposal.screen.side, let windowSide = proposal.window?.side {
+                let choice: DockDestination?
+                if let chooser = dockTargetChooser { choice = chooser(screenSide, windowSide) }
+                else { choice = chooseOverlappingTarget(screen: screenSide, window: windowSide) }
+                switch choice {
+                case .screen:
+                    windowDock = nil; attachedWindow = nil; model.side = screenSide
+                case .codex:
+                    attachedWindow = dragWindow
+                    if let window = dragWindow {
+                        windowDock = .capture(side: windowSide, frame: dragIntended, window: window.frame, compactHeight: DesignTokens.height)
+                        model.side = windowSide
+                    }
+                case nil:
+                    windowDock = nil; attachedWindow = nil; model.side = nil
+                }
+            }
             model.hovered = false
             model.blend = model.side == nil ? 0 : 1
-            resize(animated: true); save()
+            if windowDock != nil { windowSource.activate() }
+            resize(animated: true); save(); startWindowTracking()
         } else { toggleDetails() }
-        moved = false
+        moved = false; dragProposal = nil; dragWindow = nil
     }
+
+    private func chooseOverlappingTarget(screen: DockSide, window: DockSide) -> DockDestination? {
+        selectedDockTarget = nil
+        let menu = NSMenu(); menu.autoenablesItems = false
+        let title = NSMenuItem(title: tr("dock.chooseTarget"), action: nil, keyEquivalent: "")
+        title.isEnabled = false; menu.addItem(title)
+        let screenItem = NSMenuItem(title: tr(screen == .left ? "menu.left" : "menu.right"), action: #selector(chooseScreenDock), keyEquivalent: "")
+        screenItem.target = self; menu.addItem(screenItem)
+        let windowItem = NSMenuItem(title: tr(window == .left ? "menu.codexLeft" : "menu.codexRight"), action: #selector(chooseCodexDock), keyEquivalent: "")
+        windowItem.target = self; menu.addItem(windowItem)
+        menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+        return selectedDockTarget
+    }
+    @objc private func chooseScreenDock() { selectedDockTarget = .screen }
+    @objc private func chooseCodexDock() { selectedDockTarget = .codex }
+
     private func targetSize() -> CGSize {
         if model.expanded {
             let windows = store.state.snapshot?.windows.count ?? 0
@@ -211,13 +354,20 @@ import SwiftUI
     }
     private func resize(animated: Bool) {
         animation?.cancel()
-        let size = targetSize(), original = bodyFrame, visible = visibleFrame
+        var size = targetSize()
+        let original = bodyFrame
+        let visible = attachedWindow?.frame.intersection(visibleFrame) ?? visibleFrame
+        size.width = min(size.width, visible.width); size.height = min(size.height, visible.height)
         let right = model.side == .right, left = model.side == .left
         var target = CGRect(origin: original.origin, size: size)
         if left { target.origin.x = visible.minX }
         else if right { target.origin.x = visible.maxX - size.width }
         else { target.origin.x = min(visible.maxX - size.width, max(visible.minX, target.minX)) }
         target.origin.y = min(visible.maxY - size.height, max(visible.minY, original.maxY - size.height))
+        if let windowDock, let window = attachedWindow,
+           let dockFrame = windowDock.frame(in: window.frame, visible: visibleFrame, size: size, compactHeight: DesignTokens.height) {
+            target = dockFrame
+        }
         guard animated, !model.reduceMotion, original != target else {
             model.width = size.width; model.height = size.height; applyFrame(target); return
         }
@@ -317,13 +467,17 @@ import SwiftUI
         updateConsumption()
         recordInteraction("accessibility-changed", point: .zero)
     }
-    @objc private func spaceChanged() { recordInteraction("space-changed", point: .zero) }
+    @objc private func spaceChanged() { syncCodexWindow(); recordInteraction("space-changed", point: .zero) }
     func windowDidResignKey(_ notification: Notification) { if model.keyboardOpened { close() } }
     func stop() {
-        animation?.cancel(); leaveTask?.cancel(); flashTask?.cancel(); stopConsumption(); save()
+        animation?.cancel(); leaveTask?.cancel(); flashTask?.cancel(); windowTracking?.cancel(); stopConsumption(); save()
         if let localMonitor { NSEvent.removeMonitor(localMonitor) }
         if let globalMonitor { NSEvent.removeMonitor(globalMonitor) }
         NotificationCenter.default.removeObserver(self); NSWorkspace.shared.notificationCenter.removeObserver(self)
         panel.orderOut(nil)
     }
+}
+
+private extension CGRect {
+    var area: CGFloat { isNull ? 0 : width * height }
 }
