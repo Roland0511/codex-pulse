@@ -131,6 +131,11 @@ class PublishGateTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 release.check_source("sha")
 
+    def test_remote_tag_retargeting_is_rejected(self):
+        with patch.object(release, "run", return_value="tag-object refs/tags/v1.2.3\nother-source refs/tags/v1.2.3^{}\n"):
+            with self.assertRaises(ValueError):
+                release.verify_remote_tag("v1.2.3", "expected-source")
+
     def test_missing_or_extra_assets_fail_download_gate_before_network(self):
         (self.folder / "release.json").write_text(json.dumps({"version": "1.2.3"}))
         with patch.object(verify_release, "run") as run:

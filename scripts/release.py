@@ -103,6 +103,14 @@ def ensure_tag(tag, source):
     verify_tag(tag, source)
     if not remote:
         run("git", "push", "origin", "refs/tags/" + tag, timeout=180)
+    verify_remote_tag(tag, source)
+
+
+def verify_remote_tag(tag, source):
+    refs = run("git", "ls-remote", "--tags", "origin", "refs/tags/" + tag, "refs/tags/" + tag + "^{}")
+    values = {ref: sha for sha, ref in (line.split() for line in refs.splitlines())}
+    require(values.get("refs/tags/" + tag + "^{}") == source, "远端签名 tag 的源码不匹配")
+    require(values.get("refs/tags/" + tag) == run("git", "rev-parse", tag).strip(), "远端 tag 对象已变化")
 
 
 def publish_assets(folder, tag, source, notes, journal, state_path, before_publish):
@@ -204,6 +212,7 @@ def release(args):
         check_source(source)
         check_newer(args.version, args.build_number)
         verify_tag(tag, source)
+        verify_remote_tag(tag, source)
         verify(folder, source)
     print("创建或恢复草稿，上传并校验附件，通过后公开并检查自动更新地址…", flush=True)
     return publish_assets(folder, tag, source, notes, journal, state_path, before_publish)
