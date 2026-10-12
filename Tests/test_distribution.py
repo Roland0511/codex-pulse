@@ -31,6 +31,7 @@ class DistributionGateTests(unittest.TestCase):
     def test_rejected_notarization_preserves_id_without_stapling(self):
         with tempfile.TemporaryDirectory() as directory:
             folder = Path(directory)
+            (folder / "upload.zip").write_bytes(b"synthetic archive")
             with patch.object(package_release, "run", side_effect=[json.dumps({"id": "synthetic-submission"}),
                                                                      json.dumps({"status": "Invalid"}), None]) as run:
                 with self.assertRaises(ValueError):
@@ -41,11 +42,30 @@ class DistributionGateTests(unittest.TestCase):
     def test_stapling_failure_cannot_report_success(self):
         with tempfile.TemporaryDirectory() as directory:
             folder = Path(directory)
+            (folder / "upload.zip").write_bytes(b"synthetic archive")
             failure = subprocess.CalledProcessError(1, ["xcrun", "stapler", "staple"])
             with patch.object(package_release, "run", side_effect=[json.dumps({"id": "synthetic-submission"}),
                                                                      json.dumps({"status": "Accepted"}), failure]):
                 with self.assertRaises(subprocess.CalledProcessError):
                     package_release.notarize(folder / "upload.zip", folder / "App.app", [], folder, "app")
+
+    def test_notarization_timeout_resumes_same_submission_without_upload(self):
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory)
+            archive = folder / "upload.zip"
+            archive.write_bytes(b"synthetic archive")
+            with patch.object(package_release, "run", side_effect=[json.dumps({"id": "synthetic-id"}),
+                    subprocess.CalledProcessError(1, ["notarytool", "wait"]) ]):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    package_release.notarize(archive, folder / "App.app", [], folder, "app")
+            with patch.object(package_release, "run", side_effect=[json.dumps({"id": "synthetic-id", "status": "Accepted"}), None, None]) as run:
+                self.assertEqual(package_release.notarize(archive, folder / "App.app", [], folder, "app"), "synthetic-id")
+                self.assertFalse(any("submit" in call.args for call in run.call_args_list))
+            archive.write_bytes(b"changed archive")
+            with patch.object(package_release, "run") as run:
+                with self.assertRaises(ValueError):
+                    package_release.notarize(archive, folder / "App.app", [], folder, "app")
+                run.assert_not_called()
 
 
 if __name__ == "__main__":
