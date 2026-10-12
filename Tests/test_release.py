@@ -28,6 +28,25 @@ class PublishGateTests(unittest.TestCase):
         return release.publish_assets(self.folder, "v1.2.3", "synthetic-sha", self.notes,
                                       self.journal, self.folder / "state.json", before_publish)
 
+    def test_draft_lookup_uses_release_id_when_tag_api_returns_404(self):
+        responses = [
+            subprocess.CompletedProcess([], 1, "", "gh: Not Found (HTTP 404)"),
+            subprocess.CompletedProcess([], 0, json.dumps({"apiUrl": "https://api.github.com/repos/Roland0511/codex-pulse/releases/42"}), ""),
+            subprocess.CompletedProcess([], 0, json.dumps({"id": 42, "tag_name": "v1.2.3", "draft": True,
+                "prerelease": False, "html_url": "https://example.invalid/release", "body": "notes", "assets": []}), "")]
+        with patch.object(release.subprocess, "run", side_effect=responses) as run:
+            self.assertTrue(release.remote_release("v1.2.3")["isDraft"])
+            self.assertEqual(run.call_args.args[0], ["gh", "api", "repos/Roland0511/codex-pulse/releases/42"])
+
+    def test_missing_release_and_authentication_failure_are_distinct(self):
+        missing = subprocess.CompletedProcess([], 1, "", "Not Found (HTTP 404)")
+        with patch.object(release.subprocess, "run", side_effect=[missing,
+                subprocess.CompletedProcess([], 1, "", "release not found")]):
+            self.assertIsNone(release.remote_release("v1.2.3"))
+        with patch.object(release.subprocess, "run", return_value=subprocess.CompletedProcess([], 1, "", "Bad credentials (HTTP 401)")):
+            with self.assertRaises(RuntimeError):
+                release.remote_release("v1.2.3")
+
     def test_verification_failure_never_publishes(self):
         with patch.object(release, "remote_release", side_effect=[None, self.remote, self.remote]), \
              patch.object(release, "run") as run, \

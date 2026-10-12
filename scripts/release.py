@@ -38,8 +38,22 @@ def remote_release(tag):
                             capture_output=True, text=True, timeout=60)
     if result.returncode:
         if "HTTP 404" in result.stderr:
-            return None
-        raise RuntimeError("无法读取发行状态：" + result.stderr.strip())
+            # 按 tag 的 REST 接口只返回已公开发行；gh 可按 tag 查到本人可见的草稿。
+            lookup = subprocess.run(["gh", "release", "view", tag, "--repo", REPO, "--json", "apiUrl"],
+                                    cwd=ROOT, capture_output=True, text=True, timeout=60)
+            if lookup.returncode:
+                if "release not found" in lookup.stderr.lower():
+                    return None
+                raise RuntimeError("无法读取发行草稿：" + lookup.stderr.strip())
+            url = json.loads(lookup.stdout)["apiUrl"]
+            match = re.fullmatch(r"https://api\.github\.com/repos/" + re.escape(REPO) + r"/releases/(\d+)", url)
+            require(match is not None, "发行草稿的 API 地址不属于正式仓库")
+            result = subprocess.run(["gh", "api", f"repos/{REPO}/releases/{match.group(1)}"], cwd=ROOT,
+                                    capture_output=True, text=True, timeout=60)
+            if result.returncode:
+                raise RuntimeError("无法读取发行草稿：" + result.stderr.strip())
+        else:
+            raise RuntimeError("无法读取发行状态：" + result.stderr.strip())
     data = json.loads(result.stdout)
     return {"id": data["id"], "tagName": data["tag_name"], "isDraft": data["draft"],
             "isPrerelease": data["prerelease"], "url": data["html_url"], "body": data["body"],
