@@ -200,16 +200,14 @@ struct OverlayView: View {
     }
 
     private var detailHeader: some View {
-        HStack {
+        HStack(spacing: 10) {
             Text(store.demo ? tr("status.demo") : tr("status.remaining"))
                 .font(.system(size: 11, weight: .medium)).foregroundStyle(palette.muted)
                 .lineLimit(1)
-            Spacer(minLength: 92)
-        }
-        .frame(height: DesignTokens.detailsHeaderHeight)
-        .contentShape(Rectangle())
-        .overlay(DragSurface(model: model).accessibilityHidden(true))
-        .overlay(alignment: .trailing) {
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                // 原生拖动视图仅覆盖标题空白区，不得盖住 SwiftUI 操作按钮。
+                .overlay(DragSurface(model: model).accessibilityHidden(true))
             HStack(spacing: 2) {
                 Button { store.refresh(manual: true) } label: {
                     if store.refreshing {
@@ -238,7 +236,9 @@ struct OverlayView: View {
             }
             .font(.system(size: 11, weight: .medium))
             .foregroundStyle(palette.muted).buttonStyle(.borderless)
+            .fixedSize(horizontal: true, vertical: true)
         }
+        .frame(height: DesignTokens.detailsHeaderHeight)
     }
 
     private var detailContent: some View {

@@ -37,6 +37,10 @@ import Testing
         #expect(model.height >= model.detailsIdealHeight - 1)
         let content = try #require(overlay.panel.contentView)
         #expect(descendants(content).compactMap { $0 as? NSScrollView }.isEmpty)
+        let drag = try #require(descendants(content).compactMap { $0 as? HeaderHitView }.first)
+        let dragFrame = drag.convert(drag.bounds, to: content)
+        // 刷新 / 收起至少占据右侧 50 pt；旧版整行覆盖会吞掉按钮的原生鼠标事件。
+        #expect(dragFrame.maxX <= content.bounds.maxX - 16 - DesignTokens.detailsPadding - 50)
         overlay.close()
         #expect(!model.expanded)
         #expect(model.height == DesignTokens.height)
