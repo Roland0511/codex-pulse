@@ -195,11 +195,15 @@ enum DockDestination { case screen, codex }
 
     private func startWindowTracking() {
         windowTracking?.cancel()
-        guard windowDock != nil, visible else { return }
+        guard windowDock != nil else {
+            panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenNone]
+            return
+        }
+        guard visible else { return }
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         windowTracking = Task { @MainActor [weak self] in
             while !Task.isCancelled {
-                let active = self?.pollCodexWindow() ?? false
+                guard let active = self?.pollCodexWindow() else { return }
                 do { try await Task.sleep(for: .milliseconds(active ? 50 : 500)) } catch { return }
             }
         }
@@ -437,7 +441,7 @@ enum DockDestination { case screen, codex }
     }
     private func updateConsumption() {
         let confirmed = confirmedUntil.map { ContinuousClock.now < $0 } ?? false
-        guard visible, !store.suspended, store.status == .ready, model.working || confirmed else { stopConsumption(); return }
+        guard visible, !store.hidden, !store.suspended, store.status == .ready, model.working || confirmed else { stopConsumption(); return }
         model.consumptionDetected = true
         model.consumptionAnimating = !model.reduceMotion
         // 连续流光的时钟由线条子视图持有，避免每帧发布整个胶囊模型。

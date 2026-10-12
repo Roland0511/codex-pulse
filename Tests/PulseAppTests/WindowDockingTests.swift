@@ -86,9 +86,13 @@ import Testing
             model.dragEnded?()
             #expect(prompts == 1)
             switch choice {
-            case .screen: #expect(overlay.windowDock == nil && model.side == .left)
+            case .screen:
+                #expect(overlay.windowDock == nil && model.side == .left)
+                #expect(overlay.panel.collectionBehavior.contains(.fullScreenNone))
             case .codex: #expect(overlay.windowDock?.side == .left)
-            case nil: #expect(overlay.windowDock == nil && model.side == nil)
+            case nil:
+                #expect(overlay.windowDock == nil && model.side == nil)
+                #expect(overlay.panel.collectionBehavior.contains(.fullScreenNone))
             }
         }
     }
