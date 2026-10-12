@@ -23,11 +23,7 @@
 
 ## 可重复发布
 
-1. 更新版本与 build；提交源码并完成 CI。
-2. 按 `DISTRIBUTION.md` 执行 `scripts/package_release.py`：双架构构建，签名 Sparkle 的 Autoupdate、Updater.app、framework、Pulse helper 和应用，公证应用与 DMG。
-3. 同一流程用 `scripts/update_feed.py` 对最终 ZIP 签名，生成并签名 `appcast.xml`，验证两份签名。清单中的机器版本使用递增 build，不以显示版本代替。
-4. 校验值覆盖 DMG、ZIP 与已签名清单。创建 GitHub draft release，上传这三份文件及 SHA256SUMS.txt；独立验证后再公开。清单经签名后不能手工修改。
-5. 匿名下载所有附件，核对字节、签名、版本、架构与源码提交；新版本和旧清单都应保留可恢复的证据。
+统一使用 [`scripts/release.py`](../scripts/release.py)，完整命令和恢复说明见 [一键正式发布](RELEASING.md)。提交源码并完成 main CI 后，一条命令依次完成双架构构建、签名、公证、ZIP 与清单签名、独立验证、草稿上传、下载校验和公开发布。最后匿名校验四个附件及 Latest 清单，成功后才确认完成。清单中的机器版本使用递增 build，签名后不能手工修改。
 
 SwiftPM 固定 Sparkle 版本及二进制校验值，`Package.resolved` 随源码提交。应用不使用 App Sandbox，因此不包含 Sparkle 的可选 XPC Services；保留 Autoupdate 和 Updater.app，所有嵌套可执行文件从内到外分别签名，不以 `codesign --deep` 代替签名流程。
 

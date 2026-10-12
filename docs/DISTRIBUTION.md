@@ -65,6 +65,8 @@ xcrun notarytool store-credentials "codex-pulse-notary" \
 
 ## 正式打包
 
+完整新版发布请使用 [一键正式发布](RELEASING.md) 的 `scripts/release.py`，它自动执行以下打包步骤并上传、核验签名更新清单。此节保留仅生成本地正式包的用法。
+
 源码构建仍使用 Python 标准库和本机 Swift / AppKit。制作带 Finder 背景及布局的 DMG 另需固定版本 `dmgbuild`，安装到独立构建环境，不修改系统 Python：
 
 ```sh
@@ -78,7 +80,7 @@ python3 -m venv .build/packaging
   --notary-profile "codex-pulse-notary"
 ```
 
-默认版本 `0.2.0`、构建号 `6`、通用架构 `arm64 + x86_64`，最低 macOS 14。可用 `--version`、`--build-number`、`--architecture` 指定；自定义钥匙串通过 `--keychain` 指定，该路径同时用于签名和公证。Intel 架构编译不等于 Intel 实机验收。
+默认版本 `0.2.0`、构建号 `6`、通用架构 `arm64 + x86_64`，最低 macOS 14。可用 `--version`、`--build-number` 指定；正式更新包要求通用架构，候选包才可通过 `--architecture` 选择单架构。自定义钥匙串通过 `--keychain` 指定，该路径同时用于签名和公证。Intel 架构编译不等于 Intel 实机验收。
 
 流程依次构建两个架构、合并应用与 helper、去除调试符号、验证有效 Developer ID、签名 helper 及应用（Hardened Runtime、安全时间戳），上传 ZIP 公证，将票据附到 `.app` 并验证 Gatekeeper；再生成带 Applications 快捷入口的 DMG，只读挂载并验证其中应用 / helper 的严格全架构签名、应用票据及 Gatekeeper，卸载后再为 DMG 签名 / 公证 / 附票并验证。最终 ZIP 从已附票的应用生成。
 
@@ -90,12 +92,13 @@ python3 -m venv .build/packaging
 
 - `CodexPulse-版本-架构-notarized.dmg`：手动拖入 Applications 安装。
 - `CodexPulse-版本-架构-notarized.zip`：包含已签名 / 附票的应用。
-- `SHA256SUMS.txt`：两份最终文件的 SHA-256。
+- `appcast.xml`：已签名的自动更新清单，包含最终 ZIP 的 Ed25519 签名。
+- `SHA256SUMS.txt`：DMG、ZIP 和签名清单三份最终文件的 SHA-256。
 - `release.json`：版本、架构、源码提交及是否存在未提交变更、公证 ID 和校验值。
 
 只有完整流程通过并生成 `release.json`、其中 `notarized=true` 才算分发完成。任一签名、公证、附票或 Gatekeeper 步骤失败都会退出，不退回 ad-hoc 冒充正式包。
 
-公证提交 ID 会在等待前保存为 `app-submission.json` 或 `dmg-submission.json`。等待超时不会取消 Apple 服务端任务，不应反复上传；可使用其中 ID 和原 profile 执行 `xcrun notarytool wait` / `info`，取得 Accepted 后继续附票 / 验证。公证原始结果及日志仅留在被 Git 忽略的本地构建目录。
+公证提交 ID 会在等待前保存为 `app-submission.json` 或 `dmg-submission.json`。使用 `--output-dir` 固定目录后，重复同一命令会验证输入并恢复已保存的构建步骤；等待超时继续等待同一公证 ID，不重新上传。公证原始结果及日志仅留在被 Git 忽略的本地构建目录。只读复核使用 `scripts/verify_release.py`。
 
 ## 准备候选
 
