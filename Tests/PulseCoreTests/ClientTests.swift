@@ -10,8 +10,17 @@ import Testing
         let log = directory.appendingPathComponent("methods.jsonl")
         let script = """
         #!/usr/bin/python3
-        import sys,json,time
+        import sys,json,time,pathlib,os
         mode='\(mode)'
+        settings=dict(arg.split('=',1) for arg in sys.argv[1:] if '=' in arg)
+        catalog=settings.get('model_catalog_json')
+        with open('\(directory.path)/launches.jsonl','a') as f:
+            f.write(json.dumps({'arguments':sys.argv[1:],'settings':settings,'sqliteEnvironment':os.environ.get('CODEX_SQLITE_HOME')})+'\\n')
+        if mode=='reject-config': sys.exit(1)
+        if catalog:
+            json.loads(pathlib.Path(json.loads(catalog)).read_text())
+        else:
+            pathlib.Path('\(directory.path)/shared-model-cache.json').write_text('overwritten')
         reads=0
         for line in sys.stdin:
             m=json.loads(line)
@@ -96,5 +105,72 @@ import Testing
         #expect(methods.filter { $0 == "initialize" }.count == 1)
         #expect(methods.filter { $0 == "hooks/list" }.count == 1)
         #expect(Set(methods) == ["initialize", "initialized", "hooks/list", "account/read", "account/rateLimits/read"])
+    }
+
+    @Test func startupReuseAndRestartProtectSharedCacheAndCleanPrivateRuntime() async throws {
+        let (client, directory, _) = try fake("normal", hooks: true)
+        defer { client.stop(); try? FileManager.default.removeItem(at: directory) }
+        let cache = directory.appendingPathComponent("shared-model-cache.json")
+        try Data("synthetic main-client model capabilities".utf8).write(to: cache)
+        let before = try Data(contentsOf: cache)
+        let modified = try cache.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+        _ = try await client.read()
+        _ = try await client.read()
+        client.stop()
+        _ = try await client.read()
+        _ = try await client.readHookTrust(commands: [], cwd: directory)
+        let data = try String(contentsOf: directory.appendingPathComponent("launches.jsonl"), encoding: .utf8)
+        let launches = try data.split(separator: "\n").map { line in
+            try #require(JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any])
+        }
+        #expect(launches.count == 2)
+        var directories: [URL] = []
+        for launch in launches {
+            let arguments = try #require(launch["arguments"] as? [String])
+            #expect(arguments.contains("--strict-config"))
+            let settings = try #require(launch["settings"] as? [String: String])
+            #expect(settings.values.allSatisfy { !$0.contains("\\/") })
+            func path(_ key: String) throws -> String {
+                try JSONDecoder().decode(String.self, from: Data(try #require(settings[key]).utf8))
+            }
+            let runtime = URL(fileURLWithPath: try path("sqlite_home"))
+            directories.append(runtime)
+            #expect(launch["sqliteEnvironment"] as? String == runtime.path)
+            #expect(try path("model_catalog_json") == runtime.appendingPathComponent("models.json").path)
+            #expect(try path("log_dir") == runtime.appendingPathComponent("log").path)
+        }
+        #expect(directories[0] != directories[1])
+        #expect(try Data(contentsOf: cache) == before)
+        #expect(try cache.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate == modified)
+        client.stop()
+        let deadline = ContinuousClock.now.advanced(by: .seconds(3))
+        while directories.contains(where: { FileManager.default.fileExists(atPath: $0.path) }) && ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(directories.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+    }
+
+    @Test func unsupportedConfigurationNeverFallsBackToUnprotectedServer() async throws {
+        let (client, directory, _) = try fake("reject-config")
+        defer { client.stop(); try? FileManager.default.removeItem(at: directory) }
+        do { _ = try await client.read(); Issue.record("拒绝隔离配置时不应查询成功") }
+        catch { #expect(error as? QuotaError == .disconnected) }
+        #expect(client.processID == nil)
+        let launches = try String(contentsOf: directory.appendingPathComponent("launches.jsonl"), encoding: .utf8)
+        #expect(launches.split(separator: "\n").count == 1)
+        #expect(!FileManager.default.fileExists(atPath: directory.appendingPathComponent("shared-model-cache.json").path))
+    }
+
+    // 由 test_quota_server.py 在合成 CODEX_HOME / HTTPS 后端中显式启用。
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["PULSE_TEST_CODEX"] != nil))
+    func realCLIWithSyntheticBackend() async throws {
+        let executable = try #require(ProcessInfo.processInfo.environment["PULSE_TEST_CODEX"])
+        let client = QuotaClient(executable: URL(fileURLWithPath: executable))
+        defer { client.stop() }
+        let first = try await client.read()
+        #expect(first.selectedWindow?.remainingPercent == 78)
+        #expect(first.selectedWindow?.durationMinutes == 10080)
+        _ = try await client.read()
+        #expect(client.quotaReadCount == 2 && client.requestCount == 7)
     }
 }

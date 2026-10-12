@@ -3,17 +3,37 @@
 import argparse
 import datetime
 import json
+import os
 import pathlib
 import selectors
 import shutil
 import subprocess
 import time
+import tempfile
 
 
-def probe(executable):
-    proc = subprocess.Popen([executable, "app-server", "--listen", "stdio://",
-                             "-c", "analytics.enabled=false"], stdin=subprocess.PIPE,
-                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+def server_arguments(runtime):
+    catalog = pathlib.Path(__file__).resolve().parents[1] / "Sources/PulseCore/Resources/QuotaModelCatalog.json"
+    local_catalog = pathlib.Path(runtime) / "models.json"
+    shutil.copyfile(catalog, local_catalog)
+    local_catalog.chmod(0o600)
+    return ["app-server", "--listen", "stdio://", "--strict-config",
+            "-c", "analytics.enabled=false",
+            "-c", "model_catalog_json=" + json.dumps(str(local_catalog), ensure_ascii=False),
+            "-c", "sqlite_home=" + json.dumps(str(runtime), ensure_ascii=False),
+            "-c", "log_dir=" + json.dumps(str(pathlib.Path(runtime) / "log"), ensure_ascii=False)]
+
+
+def probe(executable, environment=None, observation_seconds=0):
+    with tempfile.TemporaryDirectory(prefix="codex-pulse-probe-") as runtime:
+        child_environment = dict(os.environ if environment is None else environment)
+        child_environment["CODEX_SQLITE_HOME"] = runtime
+        return _probe(executable, server_arguments(runtime), child_environment, observation_seconds)
+
+
+def _probe(executable, arguments, environment=None, observation_seconds=0):
+    proc = subprocess.Popen([executable, *arguments], stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=environment)
     sel = selectors.DefaultSelector()
     sel.register(proc.stdout, selectors.EVENT_READ)
     methods, buffer = [], b""
@@ -41,7 +61,6 @@ def probe(executable):
                     return obj["result"]
             if not sel.select(max(0, deadline - time.monotonic())):
                 break
-            import os
             chunk = os.read(proc.stdout.fileno(), 65536)
             if not chunk:
                 raise RuntimeError("App Server 已关闭连接")
@@ -70,12 +89,16 @@ def probe(executable):
                     windows.append({"bucket": index, "slot": slot, "windowDurationMins": window.get("windowDurationMins"),
                                     "usedPercent": window.get("usedPercent"), "resetsAt": window.get("resetsAt")})
         # 真实值只写到调用者明确指定、被 Git 忽略的本地证据文件。
-        return {"sampledAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                "cliVersion": subprocess.check_output([executable, "--version"], text=True).strip(),
+        result = {"sampledAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "cliVersion": subprocess.check_output([executable, "--version"], text=True, env=environment).strip(),
                 "methods": methods, "authenticated": True, "source": source,
                 "windows": windows,
                 "availableResetCount": (quota.get("rateLimitResetCredits") or {}).get("availableCount"),
                 "childPID": proc.pid}
+        # 隔离回归可保留连接，观察启动后的后台目录刷新；正常探测不等待。
+        if observation_seconds:
+            time.sleep(observation_seconds)
+        return result
     finally:
         proc.stdin.close()
         try:
@@ -88,6 +111,7 @@ def probe(executable):
                 proc.kill()
                 proc.wait()
         sel.close()
+        proc.stdout.close()
 
 
 if __name__ == "__main__":

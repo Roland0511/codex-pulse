@@ -10,6 +10,7 @@ import Foundation
     public private(set) var quotaReadCount = 0
     public private(set) var processID: Int32?
     private var process: Process?
+    private var serverConfiguration: QuotaServerConfiguration?
     private var input: FileHandle?
     private var output: FileHandle?
     private var buffer = Data()
@@ -73,14 +74,17 @@ import Foundation
     }
     private func launch() async throws {
         guard let executable = executable ?? Self.discoverExecutable() else { throw QuotaError.executableMissing }
+        let configuration = try QuotaServerConfiguration()
         let proc = Process(), stdinPipe = Pipe(), stdoutPipe = Pipe()
         proc.executableURL = executable
-        proc.arguments = ["app-server", "--listen", "stdio://", "-c", "analytics.enabled=false"]
+        proc.arguments = configuration.arguments
         proc.standardInput = stdinPipe; proc.standardOutput = stdoutPipe
         proc.standardError = FileHandle.nullDevice // 不记录可能携带身份信息的服务日志。
         // node 安装的 CLI 依赖 env node；Finder 启动时补入同目录。
         var environment = ProcessInfo.processInfo.environment
         environment["PATH"] = executable.deletingLastPathComponent().path + ":" + (environment["PATH"] ?? "/usr/bin:/bin")
+        // 此环境变量优先于 sqlite_home；不能继承主客户端的运行时目录。
+        environment["CODEX_SQLITE_HOME"] = configuration.directory.path
         proc.environment = environment
         let epoch = generation
         stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
@@ -96,14 +100,24 @@ import Foundation
                 self.disconnected()
             }
         }
-        do { try proc.run() } catch { stdoutPipe.fileHandleForReading.readabilityHandler = nil; throw QuotaError.executableMissing }
+        do { try proc.run() } catch {
+            stdoutPipe.fileHandleForReading.readabilityHandler = nil
+            configuration.remove()
+            throw QuotaError.executableMissing
+        }
+        serverConfiguration = configuration
         process = proc; processID = proc.processIdentifier
         input = stdinPipe.fileHandleForWriting; output = stdoutPipe.fileHandleForReading
         var params: [String: Any] = ["clientInfo": ["name": "codex_pulse", "title": "Codex Pulse", "version": "0.1.0"]]
         if inspectHooks { params["capabilities"] = ["experimentalApi": true] }
-        _ = try await request("initialize", params: params)
-        try send(["method": "initialized", "params": [:]])
-        initialized = true
+        do {
+            _ = try await request("initialize", params: params)
+            try send(["method": "initialized", "params": [:]])
+            initialized = true
+        } catch {
+            if generation == epoch { stop() }
+            throw error
+        }
     }
 
     public func read(now: Date = Date()) async throws -> QuotaSnapshot {
@@ -212,20 +226,23 @@ import Foundation
         try? input?.close(); try? output?.close()
         input = nil; output = nil; buffer.removeAll(keepingCapacity: false)
         let old = process
+        let configuration = serverConfiguration
+        serverConfiguration = nil
         process = nil; processID = nil
         old?.terminationHandler = nil
-        if let old, old.isRunning {
-            old.terminate()
+        if let old {
+            if old.isRunning { old.terminate() }
             // 仅终止本应用持有的 Process；异步有限等待后强制回收。
             DispatchQueue.global(qos: .utility).async {
                 for _ in 0..<20 {
-                    if !old.isRunning { return }
+                    if !old.isRunning { break }
                     Thread.sleep(forTimeInterval: 0.05)
                 }
                 if old.isRunning { kill(old.processIdentifier, SIGKILL) }
                 old.waitUntilExit()
+                configuration?.remove()
             }
-        }
+        } else { configuration?.remove() }
         let waiters = pending; pending = [:]
         for item in waiters.values { item.timeout.cancel(); item.continuation.resume(throwing: error) }
     }

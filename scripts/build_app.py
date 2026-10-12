@@ -63,6 +63,9 @@ def build(args):
     resources.mkdir()
     shutil.copy2(artwork / "AppIcon.icns", resources / "AppIcon.icns")
     shutil.copy2(ROOT / "LICENSE", resources / "LICENSE.txt")
+    # SwiftPM 的 PulseCore 资源也必须进入可移动的 .app，不能依赖构建目录。
+    for bundle in bins[0].glob("*.bundle"):
+        shutil.copytree(bundle, resources / bundle.name)
     for name in ("CodexPulse", "PulseActivityHook"):
         target = macos / name
         if len(bins) == 1:
@@ -103,8 +106,8 @@ def main():
     parser.add_argument("--architecture", choices=["native", "arm64", "x86_64", "universal"], default="native")
     parser.add_argument("--portable", action="store_true", help="不写入本机 CLI 路径；正式签名时自动生效")
     parser.add_argument("--output-dir", type=pathlib.Path, default=ROOT / "dist")
-    parser.add_argument("--version", default="0.1.1")
-    parser.add_argument("--build-number", default="3")
+    parser.add_argument("--version", default="0.1.2")
+    parser.add_argument("--build-number", default="4")
     args = parser.parse_args()
     if not re.fullmatch(r"\d+\.\d+\.\d+", args.version) or not re.fullmatch(r"[1-9]\d*", args.build_number):
         parser.error("version 必须为三段数字，build-number 必须为正整数")

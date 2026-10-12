@@ -8,7 +8,7 @@ let package = Package(
                .executable(name: "PulseActivityHook", targets: ["PulseActivityHook"]),
                .library(name: "PulseCore", targets: ["PulseCore"])],
     targets: [
-        .target(name: "PulseCore"),
+        .target(name: "PulseCore", resources: [.copy("Resources/QuotaModelCatalog.json")]),
         .executableTarget(name: "PulseApp", dependencies: ["PulseCore"]),
         .executableTarget(name: "PulseActivityHook", dependencies: ["PulseCore"]),
         .testTarget(name: "PulseAppTests", dependencies: ["PulseApp", "PulseCore"]),
