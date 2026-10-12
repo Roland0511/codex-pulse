@@ -1,6 +1,7 @@
 """Quota-only startup regression. Real CLI tests use synthetic auth and a loopback backend."""
 import base64
 import concurrent.futures
+import contextlib
 import datetime
 import http.server
 import importlib.util
@@ -8,6 +9,7 @@ import json
 import os
 import pathlib
 import ssl
+import sqlite3
 import subprocess
 import tempfile
 import threading
@@ -34,9 +36,9 @@ class QuotaServerTests(unittest.TestCase):
             self.assertEqual([p.name for p in pathlib.Path(runtime).iterdir()], ["models.json"])
 
     def test_failed_launch_cleans_runtime_and_never_retries_unprotected(self):
-        with mock.patch.object(probe.subprocess, "Popen", side_effect=FileNotFoundError) as launch:
+        with tempfile.TemporaryDirectory() as state, mock.patch.object(probe.subprocess, "Popen", side_effect=FileNotFoundError) as launch:
             with self.assertRaises(FileNotFoundError):
-                probe.probe("/synthetic/missing/codex")
+                probe.probe("/synthetic/missing/codex", state_root=state)
         self.assertEqual(launch.call_count, 1)
         arguments = launch.call_args.args[0]
         value = next(arg for arg in arguments if arg.startswith("model_catalog_json="))
@@ -119,7 +121,42 @@ class LocalCLIQuotaTests(unittest.TestCase):
         self.cache.write_bytes(b'{"synthetic_main_client_cache":"must not be replaced"}\n')
 
     def run_probe(self):
-        return probe.probe(os.environ["PULSE_TEST_CODEX"], environment=self.environment, observation_seconds=1)
+        return probe.probe(os.environ["PULSE_TEST_CODEX"], environment=self.environment, observation_seconds=1,
+                           state_root=self.home / "pulse-state")
+
+    def test_history_backfill_is_retained_across_process_restarts(self):
+        # 真正的 rollout schema 与多 MiB 合成历史；官方 CLI 负责回填，不读取真实会话。
+        history = self.home / "sessions/2026/01/01"
+        history.mkdir(parents=True)
+        for index in range(160):
+            identity = f"00000000-0000-4000-8000-{index:012d}"
+            stamp = "2026-01-01T00:00:00.000Z"
+            records = [{"timestamp": stamp, "type": "session_meta", "payload": {
+                "id": identity, "timestamp": stamp, "cwd": "/synthetic", "originator": "codex_cli_rs",
+                "cli_version": "0.162.1", "source": "cli", "model_provider": "openai"}},
+                {"timestamp": stamp, "type": "event_msg", "payload": {
+                    "type": "user_message", "message": "Synthetic history " + "fixture " * 8192, "images": [], "local_images": []}}]
+            (history / f"rollout-2026-01-01T00-00-00-{identity}.jsonl").write_text(
+                "".join(json.dumps(record) + "\n" for record in records))
+        database = probe.state_directory(os.environ["PULSE_TEST_CODEX"], self.environment, self.home / "pulse-state")
+        first = self.run_probe()
+        files = list(database.glob("state_*.sqlite"))
+        self.assertEqual(len(files), 1)
+        with contextlib.closing(sqlite3.connect(files[0])) as connection:
+            rows = connection.execute("select count(*) from threads").fetchone()[0]
+            before = connection.execute("select * from backfill_state").fetchall()
+        self.assertEqual(rows, 160)
+        self.assertTrue(before)
+        self.assertIn("complete", str(before))
+        inode = files[0].stat().st_ino
+        second = self.run_probe()
+        with contextlib.closing(sqlite3.connect(files[0])) as connection:
+            self.assertEqual(connection.execute("select * from backfill_state").fetchall(), before)
+            self.assertEqual(connection.execute("select count(*) from threads").fetchone()[0], rows)
+        self.assertEqual(files[0].stat().st_ino, inode)
+        self.assertNotEqual(first["childPID"], second["childPID"])
+        self.assertEqual(second["windows"][0]["usedPercent"], 22)
+        self.assertEqual(list(self.home.glob("state_*.sqlite")), [])
 
     def test_repeated_startup_and_restart_leave_shared_cache_untouched(self):
         before = (self.cache.read_bytes(), self.cache.stat())
