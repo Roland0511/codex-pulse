@@ -28,9 +28,13 @@ import Foundation
     private var pending: [Int: Pending] = [:]
     public var executable: URL?
     public var timeoutSeconds: Double
+    public var initializationTimeoutSeconds: Double
+    var stateRoot: URL?
 
-    public init(executable: URL? = nil, timeoutSeconds: Double = 20, inspectHooks: Bool = false) {
+    public init(executable: URL? = nil, timeoutSeconds: Double = 20, inspectHooks: Bool = false,
+                initializationTimeoutSeconds: Double = 120) {
         self.executable = executable; self.timeoutSeconds = timeoutSeconds; self.inspectHooks = inspectHooks
+        self.initializationTimeoutSeconds = initializationTimeoutSeconds
     }
 
     public static func discoverExecutable(preferred: String? = nil) -> URL? {
@@ -63,18 +67,42 @@ import Foundation
     }
 
     private func start() async throws {
+        try Task.checkCancellation()
         if initialized, process?.isRunning == true { return }
-        if let startup { try await startup.value; return }
+        if let startup, let startupID { try await waitForStartup(startup, identifier: startupID); return }
         stop()
         let identifier = UUID()
         let task = Task { @MainActor in try await self.launch() }
         startup = task; startupID = identifier
         defer { if startupID == identifier { startup = nil; startupID = nil } }
-        try await task.value
+        try await waitForStartup(task, identifier: identifier)
+    }
+
+    private func waitForStartup(_ task: Task<Void, Error>, identifier: UUID) async throws {
+        try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            try await task.value
+            try Task.checkCancellation()
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                guard let self, self.startupID == identifier else { return }
+                self.stop()
+            }
+        }
     }
     private func launch() async throws {
         guard let executable = executable ?? Self.discoverExecutable() else { throw QuotaError.executableMissing }
-        let configuration = try QuotaServerConfiguration()
+        let deadline = ContinuousClock.now.advanced(by: .seconds(initializationTimeoutSeconds))
+        let configuration = try QuotaServerConfiguration(executable: executable,
+            environment: ProcessInfo.processInfo.environment, stateRoot: stateRoot)
+        do {
+            while try !configuration.acquire() {
+                try Task.checkCancellation()
+                guard ContinuousClock.now < deadline else { throw QuotaError.timedOut }
+                try await Task.sleep(for: .milliseconds(100))
+            }
+            try Task.checkCancellation()
+        } catch { configuration.remove(); throw error }
         let proc = Process(), stdinPipe = Pipe(), stdoutPipe = Pipe()
         proc.executableURL = executable
         proc.arguments = configuration.arguments
@@ -84,7 +112,7 @@ import Foundation
         var environment = ProcessInfo.processInfo.environment
         environment["PATH"] = executable.deletingLastPathComponent().path + ":" + (environment["PATH"] ?? "/usr/bin:/bin")
         // 此环境变量优先于 sqlite_home；不能继承主客户端的运行时目录。
-        environment["CODEX_SQLITE_HOME"] = configuration.directory.path
+        environment["CODEX_SQLITE_HOME"] = configuration.sqliteDirectory.path
         proc.environment = environment
         let epoch = generation
         stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
@@ -111,7 +139,10 @@ import Foundation
         var params: [String: Any] = ["clientInfo": ["name": "codex_pulse", "title": "Codex Pulse", "version": "0.1.0"]]
         if inspectHooks { params["capabilities"] = ["experimentalApi": true] }
         do {
-            _ = try await request("initialize", params: params)
+            let remaining = ContinuousClock.now.duration(to: deadline)
+            let seconds = Double(remaining.components.seconds) + Double(remaining.components.attoseconds) / 1e18
+            guard seconds > 0 else { throw QuotaError.timedOut }
+            _ = try await request("initialize", params: params, timeout: seconds)
             try send(["method": "initialized", "params": [:]])
             initialized = true
         } catch {
@@ -144,7 +175,7 @@ import Foundation
         return Self.digest("chatgpt:" + email.lowercased())
     }
 
-    public static func digest(_ text: String) -> String {
+    nonisolated public static func digest(_ text: String) -> String {
         SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
     }
     public func readHookTrust(commands: Set<String>, cwd: URL) async throws -> HookTrustSummary {
@@ -153,16 +184,17 @@ import Foundation
         return try HookTrustSummary.parse(try await request("hooks/list", params: ["cwds": [cwd.path]]), commands: commands)
     }
 
-    private func request(_ method: String, params: [String: Any]? = nil) async throws -> Data {
+    private func request(_ method: String, params: [String: Any]? = nil, timeout: Double? = nil) async throws -> Data {
         guard ["initialize", "account/read", "account/rateLimits/read"].contains(method) || (inspectHooks && method == "hooks/list") else { throw QuotaError.permissionDenied }
         sequence += 1
         let id = sequence
         let epoch = generation
         try Task.checkCancellation()
+        let requestTimeout = timeout ?? timeoutSeconds
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 let timer = Task { @MainActor [weak self] in
-                    do { try await Task.sleep(for: .seconds(self?.timeoutSeconds ?? 20)) } catch { return }
+                    do { try await Task.sleep(for: .seconds(requestTimeout)) } catch { return }
                     guard let self, self.pending[id] != nil else { return }
                     self.stop(error: .timedOut)
                 }

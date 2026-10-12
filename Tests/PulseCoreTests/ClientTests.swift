@@ -29,6 +29,7 @@ import Testing
             method=m['method']
             result={}
             if method=='initialize' and mode=='concurrent': time.sleep(0.15)
+            if method=='initialize' and mode in ['slow-start', 'stuck-start']: time.sleep(21 if mode=='slow-start' else 30)
             if method=='hooks/list': result={'data':[]}
             if method=='account/read':
                 reads+=1
@@ -47,7 +48,9 @@ import Testing
         """
         try script.write(to: executable, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
-        return (QuotaClient(executable: executable, timeoutSeconds: mode == "timeout" ? 0.8 : 5, inspectHooks: hooks), directory, log)
+        let client = QuotaClient(executable: executable, timeoutSeconds: mode == "timeout" ? 0.8 : 5, inspectHooks: hooks)
+        client.stateRoot = directory.appendingPathComponent("state")
+        return (client, directory, log)
     }
     @Test func fragmentedReadAndReuseOnlyReadMethods() async throws {
         let (client, directory, log) = try fake("normal")
@@ -82,6 +85,9 @@ import Testing
     }
     @Test func missingExecutableHasActionableState() async {
         let client = QuotaClient(executable: URL(fileURLWithPath: "/synthetic/missing/codex"))
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        client.stateRoot = root
+        defer { try? FileManager.default.removeItem(at: root) }
         do { _ = try await client.read(); Issue.record("不存在的可执行文件不应成功") }
         catch { #expect(error as? QuotaError == .executableMissing) }
         #expect(client.processID == nil)
@@ -124,7 +130,7 @@ import Testing
             try #require(JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any])
         }
         #expect(launches.count == 2)
-        var directories: [URL] = []
+        var directories: [URL] = [], databases: [URL] = []
         for launch in launches {
             let arguments = try #require(launch["arguments"] as? [String])
             #expect(arguments.contains("--strict-config"))
@@ -133,13 +139,16 @@ import Testing
             func path(_ key: String) throws -> String {
                 try JSONDecoder().decode(String.self, from: Data(try #require(settings[key]).utf8))
             }
-            let runtime = URL(fileURLWithPath: try path("sqlite_home"))
+            let database = URL(fileURLWithPath: try path("sqlite_home"))
+            let runtime = URL(fileURLWithPath: try path("model_catalog_json")).deletingLastPathComponent()
             directories.append(runtime)
-            #expect(launch["sqliteEnvironment"] as? String == runtime.path)
+            databases.append(database)
+            #expect(launch["sqliteEnvironment"] as? String == database.path)
             #expect(try path("model_catalog_json") == runtime.appendingPathComponent("models.json").path)
             #expect(try path("log_dir") == runtime.appendingPathComponent("log").path)
         }
         #expect(directories[0] != directories[1])
+        #expect(databases[0] == databases[1] && databases[0] != directories[0])
         #expect(try Data(contentsOf: cache) == before)
         #expect(try cache.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate == modified)
         client.stop()
@@ -148,6 +157,54 @@ import Testing
             try await Task.sleep(for: .milliseconds(10))
         }
         #expect(directories.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+        #expect(FileManager.default.fileExists(atPath: databases[0].path))
+    }
+
+    @Test func initializationCanExceedTwentySecondsWithoutExtendingRPCDeadline() async throws {
+        let (client, directory, _) = try fake("slow-start")
+        defer { client.stop(); try? FileManager.default.removeItem(at: directory) }
+        client.timeoutSeconds = 1
+        client.initializationTimeoutSeconds = 25
+        let snapshot = try await client.read()
+        #expect(snapshot.selectedWindow?.remainingPercent == 78)
+    }
+
+    @Test(arguments: [false, true])
+    func databaseLockWaitIsBoundedAndCancellable(cancel: Bool) async throws {
+        let (client, directory, _) = try fake("normal")
+        defer { client.stop(); try? FileManager.default.removeItem(at: directory) }
+        let holder = try QuotaServerConfiguration(executable: try #require(client.executable),
+            environment: ProcessInfo.processInfo.environment, stateRoot: client.stateRoot)
+        defer { holder.remove() }
+        #expect(try holder.acquire())
+        client.initializationTimeoutSeconds = cancel ? 60 : 0.2
+        let task = Task { try await client.read() }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(client.processID == nil)
+        if cancel { task.cancel() }
+        do { _ = try await task.value; Issue.record("锁等待应当取消或超时") }
+        catch { if !cancel { #expect(error as? QuotaError == .timedOut) } }
+        #expect(!client.isBusy)
+        holder.remove()
+        client.initializationTimeoutSeconds = 5
+        #expect(try await client.read().selectedWindow?.remainingPercent == 78)
+    }
+
+    @Test(arguments: [false, true])
+    func initializationTimeoutAndCallerCancellationReapProcess(cancel: Bool) async throws {
+        let (client, directory, log) = try fake("stuck-start")
+        defer { client.stop(); try? FileManager.default.removeItem(at: directory) }
+        client.initializationTimeoutSeconds = cancel ? 60 : 0.5
+        let task = Task { try await client.read() }
+        while !FileManager.default.fileExists(atPath: log.path) { try await Task.sleep(for: .milliseconds(10)) }
+        let pid = try #require(client.processID)
+        if cancel { task.cancel() }
+        do { _ = try await task.value; Issue.record("初始化应当取消或超时") }
+        catch { if !cancel { #expect(error as? QuotaError == .timedOut) } }
+        #expect(!client.isBusy && client.processID == nil)
+        let deadline = ContinuousClock.now.advanced(by: .seconds(3))
+        while kill(pid, 0) == 0 && ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(kill(pid, 0) != 0)
     }
 
     @Test func unsupportedConfigurationNeverFallsBackToUnprotectedServer() async throws {
@@ -166,6 +223,7 @@ import Testing
     func realCLIWithSyntheticBackend() async throws {
         let executable = try #require(ProcessInfo.processInfo.environment["PULSE_TEST_CODEX"])
         let client = QuotaClient(executable: URL(fileURLWithPath: executable))
+        client.stateRoot = URL(fileURLWithPath: try #require(ProcessInfo.processInfo.environment["CODEX_HOME"])).appendingPathComponent("pulse-state")
         defer { client.stop() }
         let first = try await client.read()
         #expect(first.selectedWindow?.remainingPercent == 78)

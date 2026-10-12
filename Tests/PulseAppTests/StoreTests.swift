@@ -37,7 +37,9 @@ import Testing
         """
         try script.write(to: executable, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
-        return (QuotaStore(client: QuotaClient(executable: executable, timeoutSeconds: 5)), directory)
+        let client = QuotaClient(executable: executable, timeoutSeconds: 5)
+        client.stateRoot = directory.appendingPathComponent("state")
+        return (QuotaStore(client: client), directory)
     }
     private func settled(_ store: QuotaStore) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(6))
@@ -56,6 +58,22 @@ import Testing
         #expect(store.client.quotaReadCount == 1)
         store.resume(); try await settled(store)
         #expect(store.client.quotaReadCount == 2)
+    }
+    @Test func idleReapingAndManualRefreshKeepPrivateDatabase() async throws {
+        let (store, directory) = try fake("normal")
+        defer { store.stop(); try? FileManager.default.removeItem(at: directory) }
+        store.refresh(); try await settled(store)
+        let pid = try #require(store.client.processID)
+        let root = try #require(store.client.stateRoot)
+        let before = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
+        let deadline = ContinuousClock.now.advanced(by: .seconds(13))
+        while store.client.processID != nil && ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        #expect(store.client.processID == nil)
+        store.refresh(manual: true); try await settled(store)
+        #expect(store.status == .ready && store.client.processID != pid)
+        #expect(try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) == before)
     }
     @Test func failurePreservesAndMarksCacheThenResumeRevalidates() async throws {
         let (store, directory) = try fake("failure")
