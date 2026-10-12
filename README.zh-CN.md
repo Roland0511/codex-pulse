@@ -8,7 +8,7 @@ Codex Pulse 把 **Codex 剩余额度和重置倒计时**，放进一枚随手可
 
 使用 SwiftUI 与 AppKit 原生构建，通过官方本地 Codex App Server 读取额度，不读取聊天内容。
 
-**[v0.1.3](https://github.com/Roland0511/codex-pulse/releases/tag/v0.1.3) 已修复历史会话较多时反复初始化超时的问题**（[issue #3](https://github.com/Roland0511/codex-pulse/issues/3)）。新版复用私有数据库，为首次初始化提供有限等待，同时保留 v0.1.2 的共享模型缓存保护。[修复与验证说明](docs/QUOTA-TRANSPORT.md)。
+**[v0.2.0](https://github.com/Roland0511/codex-pulse/releases/tag/v0.2.0) 新增检查更新和可选自动升级。** 更新清单和安装包均经过签名验证。0.1.3 及更早版本需手动升级一次，之后可在应用内更新。[更新指南](docs/UPDATES.md)。
 
 ## 轻巧，但该知道的都在
 
@@ -37,6 +37,8 @@ Codex Pulse 把 **Codex 剩余额度和重置倒计时**，放进一枚随手可
 | 收起详情 | `Escape` 或点击外部 |
 | 固定贴边长条 | 点击图钉 |
 | 不拖动也能移动 | 菜单「位置」 |
+| 检查更新 | 菜单「检查更新…」或设置中的同名按钮 |
+| 自动升级 | 在设置中开启自动检查和自动下载安装；下载完成后退出时安装 |
 | 切换语言 | 设置 → 语言 → 跟随系统 / 简体中文 / English |
 
 ### 可选工作特效

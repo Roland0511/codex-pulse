@@ -1,6 +1,6 @@
 # macOS 手动分发
 
-2026-10-13 当前公开分发：[v0.1.3 / build 5](https://github.com/Roland0511/codex-pulse/releases/tag/v0.1.3)。PR #4 已合并，修复历史回填导致的初始化超时，并保留共享模型缓存保护。通用架构应用及 DMG 均获 Apple 公证 Accepted，签名、票据、Gatekeeper、最终 ZIP / DMG 独立验证通过；公开附件匿名下载逐字节一致。本机已从公开 ZIP 升级并核对额度、手动刷新和工作特效连接。Intel 已交叉编译，未新增 Intel 实机、多屏或真实休眠验收。
+2026-10-13 当前公开分发：[v0.2.0 / build 6](https://github.com/Roland0511/codex-pulse/releases/tag/v0.2.0)。新增签名更新检查和自动升级；本机已安装并完成真实升级链路验收。通用架构应用及 DMG 的 Apple 公证、签名、票据和 Gatekeeper 通过，ZIP / DMG 内应用、Sparkle 嵌套代码及公开下载独立核验通过。历史交付记录保留如下。
 
 历史交付状态：2026-10-10 v0.1.0（构建 2）正式手动分发包完成，包含完整应用图标和中文拖放安装界面，已在真实 Finder 中确认。应用及 DMG 均通过 Developer ID 签名、Apple 公证、票据及 Gatekeeper；最终 ZIP 解压、DMG 包内应用只读核验和 SHA-256 独立复核通过。支持 arm64 / x86_64，最低 macOS 14；Intel 和旧系统仅完成编译，未做实机运行验收。
 
@@ -145,3 +145,15 @@ python3 -m venv .build/packaging
 正式流程现在同时需要已配置的 Sparkle Ed25519 私钥（系统钥匙串账户 `dev.roland.codex-pulse`，公钥见 `Resources/Updates.json`）。构建会固定下载并嵌入 Sparkle 2.10.0，保留许可，分别签名更新 helper 和 framework，再签名应用；不把私钥或账号认证数据打入安装包。
 
 `package_release.py` 在两份安装包完成公证后自动创建、签名、验签 `appcast.xml`；SHA256SUMS.txt 同时列出 DMG、ZIP、feed。正式发布应先上传到 draft release，确认四个附件完整后再公开，避免用户请求到缺失清单。`SUFeedURL` 指向最新发布附件中的 appcast.xml。具体开关、安装时机与测试边界见 [UPDATES.md](UPDATES.md)。
+
+
+## v0.2.0 / build 6 正式发布（2026-10-13）
+
+- [PR #5](https://github.com/Roland0511/codex-pulse/pull/5) 已合并，签名 tag `v0.2.0` 指向干净构建源码 `e5927691324474c9f1132eb636ece55fb25ebaa9`；其源码树与合并提交 `75973cb` 一致。CI [38277143244](https://github.com/Roland0511/codex-pulse/actions/runs/38277143244) 通过。
+- 产物目录 `dist/releases/0.2.0-6-20261013-002537/`，`sourceDirty=false`，arm64 + x86_64。应用和 DMG 两次公证均为 Accepted，完整容器独立核验通过。
+- 正式附件：DMG 3,643,866 bytes、ZIP 3,007,256 bytes、已签名 appcast.xml 1,452 bytes、SHA256SUMS.txt 292 bytes。匿名资产下载与本地逐字节一致。
+- DMG SHA-256：`47f610780ae30ac4c576c8bae2e9b0ae81cb84ff6ccaeae029a3eea5d1373167`。
+- ZIP SHA-256：`2b5471e56d2e777fd453dcba8d8a9ba08eca56a65a69384ad641fe4f6f6761f0`。
+- appcast.xml SHA-256：`ca811fbf3dba36183656ca220ab6942f405494493ca6c0f105c368e77696d23c`。
+- 本机已安装正式版本；独立低版本测试包的手动安装重启、自动下载与退出自动安装全部完成，详见 [UPDATES.md](UPDATES.md)。Intel 仍仅交叉编译，未新增 Intel 实机验收。
+- 首轮 Swift 6.1 编译失败对应的旧候选 `0.2.0-6-20261013-002306/` 已标记 WITHDRAWN，未公开分发；不能与正式产物混用。

@@ -8,7 +8,7 @@ Codex Pulse keeps your **remaining Codex quota and reset countdown** within reac
 
 Built with SwiftUI and AppKit. Quota comes from the official local Codex App Server. The app does not read your conversations.
 
-**[v0.1.3](https://github.com/Roland0511/codex-pulse/releases/tag/v0.1.3) fixes repeated initialization timeouts on Macs with a large Codex history** ([issue #3](https://github.com/Roland0511/codex-pulse/issues/3)). It reuses a private database and allows a bounded first initialization, while preserving v0.1.2’s shared model-cache protection. [Fix and verification notes](docs/QUOTA-TRANSPORT.md).
+**[v0.2.0](https://github.com/Roland0511/codex-pulse/releases/tag/v0.2.0) adds Check for Updates and optional automatic upgrades.** Signed update feeds and archives are verified before installation. Version 0.1.3 and earlier need one manual upgrade to this release. [Update guide](docs/UPDATES.md).
 
 ## A little presence, useful detail
 
@@ -37,6 +37,8 @@ The app and DMG are **Developer ID signed, Apple-notarized, and stapled**. A ZIP
 | Close details | `Escape` or click outside |
 | Keep an edge bar open | Click the pin |
 | Move without dragging | Menu → **Position** |
+| Check for updates | Menu → **Check for Updates…**, or Settings |
+| Automatic upgrades | Enable automatic checks and downloads in Settings; downloaded updates install on quit |
 | Change language | Settings → **Language** → Follow system / 简体中文 / English |
 
 ### Optional work animation
