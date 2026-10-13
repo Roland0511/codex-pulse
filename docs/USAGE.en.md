@@ -20,7 +20,7 @@ Visible quota refreshes every 60 seconds; explicitly hidden quota every five min
 
 Drag near either screen edge or either inner edge of a Codex window, then release to attach. When both targets qualify, an Attach to menu lets you choose the screen or Codex window; Escape cancels and leaves the capsule floating. Position also offers four explicit docking commands.
 
-When attached to Codex, the capsule follows its window as it moves or resizes. It hides while Codex is minimized or another app is active, then returns with Codex. Hover expands the bar, pin keeps it expanded, and a click opens details. Choosing screen docking ends window following.
+When attached to Codex, the capsule follows its window as it moves or resizes. It hides while Codex is minimized and returns with the window. Switching apps keeps the capsule attached; foreground windows cover both Codex and its capsule. Hover expands the bar, pin keeps it expanded, and a click opens details. Choosing screen docking ends window following.
 
 The default show/hide shortcut is `Control + Option + Command + P`. Settings lets you choose a key and at least two modifiers; conflicts are reported. Use the menu's Show quota details command for keyboard focus, then Escape to close. Mouse-opened details do not steal focus.
 

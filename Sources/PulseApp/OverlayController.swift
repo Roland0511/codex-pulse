@@ -18,7 +18,7 @@ enum DockDestination { case screen, codex }
     let panel: PulsePanel
     private var bodyFrame = CGRect.zero
     private let windowSource: any CodexWindowSource
-    private var windowTracking: Task<Void, Never>?
+    private let windowTracking = WindowFollowClock()
     private(set) var windowDock: WindowDockPosition?
     private(set) var attachedWindow: CodexWindow?
     private var screen: NSScreen?
@@ -96,6 +96,9 @@ enum DockDestination { case screen, codex }
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(accessibilityChanged), name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(spaceChanged), name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
+        for name in [NSWorkspace.didActivateApplicationNotification, NSWorkspace.didHideApplicationNotification, NSWorkspace.didUnhideApplicationNotification] {
+            NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(spaceChanged), name: name, object: nil)
+        }
     }
 
     private func screenID(_ screen: NSScreen) -> String {
@@ -119,6 +122,7 @@ enum DockDestination { case screen, codex }
         }
         if let windowDock {
             model.side = windowDock.side; model.blend = 1
+            configureHostLevel()
             syncCodexWindow(); startWindowTracking()
         }
     }
@@ -143,7 +147,7 @@ enum DockDestination { case screen, codex }
         updateConsumption()
         if keyboard { open(keyboard: true) }
     }
-    func hide() { close(); stopConsumption(); visible = false; store.hidden = true; windowTracking?.cancel(); panel.orderOut(nil) }
+    func hide() { close(); stopConsumption(); visible = false; store.hidden = true; windowTracking.stop(); panel.orderOut(nil) }
     func toggleVisible() { if visible { hide() } else { show() } }
     func toggleDetails() { if model.expanded { close() } else { open() } }
     func open(keyboard: Bool = false) {
@@ -171,8 +175,9 @@ enum DockDestination { case screen, codex }
         resize(animated: true)
     }
     func place(_ side: DockSide?) {
-        windowTracking?.cancel(); windowDock = nil; attachedWindow = nil
+        windowTracking.stop(); windowDock = nil; attachedWindow = nil
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenNone]
+        panel.isFloatingPanel = true; panel.level = .floating
         model.side = side; model.blend = side == nil ? 0 : 1
         model.expanded = false; model.hovered = false
         if side == nil { bodyFrame.origin.x = visibleFrame.midX - DesignTokens.capsuleWidth / 2 }
@@ -190,54 +195,66 @@ enum DockDestination { case screen, codex }
         model.side = side; model.blend = 1; model.hovered = false
         visible = true
         windowSource.activate()
-        syncCodexWindow(); resize(animated: false); save(); startWindowTracking()
+        configureHostLevel()
+        syncCodexWindow(forceOrder: true); resize(animated: false); save(); startWindowTracking()
     }
 
     private func startWindowTracking() {
-        windowTracking?.cancel()
+        windowTracking.stop()
         guard windowDock != nil else {
             panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenNone]
+            panel.isFloatingPanel = true; panel.level = .floating
             return
         }
         guard visible else { return }
-        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
-        windowTracking = Task { @MainActor [weak self] in
-            while !Task.isCancelled {
-                guard let active = self?.pollCodexWindow() else { return }
-                do { try await Task.sleep(for: .milliseconds(active ? 50 : 500)) } catch { return }
-            }
+        configureHostLevel()
+        windowTracking.start(on: screen) { [weak self] in
+            guard let self else { return false }
+            self.syncCodexWindow()
+            return self.visible && self.panel.isVisible && self.attachedWindow?.isOnScreen == true
         }
     }
 
-    private func pollCodexWindow() -> Bool {
-        syncCodexWindow()
-        return windowSource.isCodexActive && attachedWindow?.isOnScreen == true && visible
+    private func configureHostLevel() {
+        if panel.isFloatingPanel { panel.isFloatingPanel = false }
+        if panel.level != .normal { panel.level = .normal }
+        let behavior: NSWindow.CollectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
+        if panel.collectionBehavior != behavior { panel.collectionBehavior = behavior }
     }
 
     /// Refresh only the selected window; reselect after it closes or Codex restarts.
-    func syncCodexWindow() {
-        guard windowDock != nil, startPoint == nil else { return }
+    func syncCodexWindow(forceOrder: Bool = false) {
+        guard visible, windowDock != nil, startPoint == nil else { return }
         let previous = attachedWindow
         let existing = attachedWindow.flatMap { windowSource.windows(matching: $0.id).first }
         attachedWindow = existing ?? windowSource.windows(matching: nil).first(where: { $0.isOnScreen })
-        if let window = attachedWindow {
+        if let window = attachedWindow, previous?.frame != window.frame || forceOrder {
             let eligible = NSScreen.screens.filter {
                 windowDock?.frame(in: window.frame, visible: $0.visibleFrame, size: targetSize(), compactHeight: DesignTokens.height) != nil
             }
             screen = (eligible.isEmpty ? NSScreen.screens : eligible).max {
                 $0.frame.intersection(window.frame).area < $1.frame.intersection(window.frame).area
             } ?? screen
+            windowTracking.useScreen(screen)
         }
-        let display = visible && attachedWindow?.isOnScreen == true && (windowSource.isCodexActive || panel.isKeyWindow)
-        let frame = attachedWindow.flatMap { windowDock?.frame(in: $0.frame, visible: visibleFrame, size: targetSize(), compactHeight: DesignTokens.height) }
-        guard display, frame != nil else {
+        let display = attachedWindow?.isOnScreen == true
+        let frame = attachedWindow.flatMap { windowDock?.frame(in: $0.frame, visible: visibleFrame, size: CGSize(width: model.width, height: model.height), compactHeight: DesignTokens.height) }
+        guard display, let frame, let window = attachedWindow else {
             if panel.isVisible { close(); panel.orderOut(nil); stopConsumption() }
             store.hidden = true
             return
         }
-        if previous != attachedWindow || !panel.isVisible { resize(animated: false) }
+        let wasVisible = panel.isVisible
+        configureHostLevel()
+        if !wasVisible || previous?.frame.size != window.frame.size {
+            resize(animated: false)
+        } else if frame != bodyFrame {
+            // A host translation never publishes SwiftUI size changes or restarts expansion.
+            applyFrame(frame)
+        }
         store.hidden = false
-        if !panel.isVisible { panel.orderFrontRegardless(); updateConsumption() }
+        windowSource.orderPanel(panel, above: window, force: forceOrder || !wasVisible || previous?.id != window.id)
+        if !wasVisible { updateConsumption() }
     }
 
     private func hover(_ entered: Bool) {
@@ -262,7 +279,8 @@ enum DockDestination { case screen, codex }
         guard let startPoint else { return }
         let dx = point.x - startPoint.x, dy = point.y - startPoint.y
         if !moved && hypot(dx, dy) < DesignTokens.dragThreshold { return }
-        windowTracking?.cancel(); windowDock = nil; attachedWindow = nil
+        windowTracking.stop(); windowDock = nil; attachedWindow = nil
+        if !moved { panel.isFloatingPanel = true; panel.level = .floating }
         moved = true; model.expanded = false; model.keyboardOpened = false; panel.keyboardEnabled = false
         // 从标签拖动时以当前指针抓取比例转换到自由胶囊，避免跳到指针另一侧。
         let grab = min(1, max(0, (startPoint.x - startFrame.minX) / max(1, startFrame.width)))
@@ -357,7 +375,7 @@ enum DockDestination { case screen, codex }
         return CGSize(width: model.compactWidth, height: DesignTokens.height)
     }
     private func resize(animated: Bool) {
-        animation?.cancel()
+        animation?.cancel(); animation = nil
         var size = targetSize()
         let original = bodyFrame
         let visible = attachedWindow?.frame.intersection(visibleFrame) ?? visibleFrame
@@ -374,7 +392,9 @@ enum DockDestination { case screen, codex }
             target = dockFrame
         }
         guard animated, !model.reduceMotion, original != target else {
-            model.width = size.width; model.height = size.height; applyFrame(target); return
+            if model.width != size.width { model.width = size.width }
+            if model.height != size.height { model.height = size.height }
+            applyFrame(target); return
         }
         animation = Task { @MainActor [weak self] in
             let start = ContinuousClock.now
@@ -390,8 +410,12 @@ enum DockDestination { case screen, codex }
                 let x = left ? visible.minX : right ? visible.maxX - width : original.minX + (target.minX - original.minX) * eased
                 let y = original.minY + (target.minY - original.minY) * eased
                 self.model.width = width; self.model.height = height
-                self.applyFrame(CGRect(x: x, y: y, width: width, height: height))
-                if progress == 1 { self.save(); return }
+                let current = self.attachedWindow.flatMap {
+                    self.windowDock?.frame(in: $0.frame, visible: self.visibleFrame,
+                        size: CGSize(width: width, height: height), compactHeight: DesignTokens.height)
+                } ?? CGRect(x: x, y: y, width: width, height: height)
+                self.applyFrame(current)
+                if progress == 1 { self.animation = nil; self.save(); return }
                 do { try await Task.sleep(for: .milliseconds(16)) } catch { return }
             }
         }
@@ -404,7 +428,11 @@ enum DockDestination { case screen, codex }
         return cubic((low + high) / 2, c[1], c[3])
     }
     private func applyFrame(_ frame: CGRect) {
-        bodyFrame = frame; panel.setFrame(frame.insetBy(dx: -16, dy: -16), display: true)
+        let padded = frame.insetBy(dx: -16, dy: -16)
+        bodyFrame = frame
+        if panel.frame.size == padded.size {
+            if panel.frame.origin != padded.origin { panel.setFrameOrigin(padded.origin) }
+        } else { panel.setFrame(padded, display: true) }
     }
     private func recordInteraction(_ kind: String, point: NSPoint) {
         guard let path = ProcessInfo.processInfo.environment["PULSE_INTERACTION_FILE"] else { return }
@@ -465,17 +493,17 @@ enum DockDestination { case screen, codex }
         let currentID = screen.map(screenID)
         screen = NSScreen.screens.first(where: { screenID($0) == currentID }) ?? NSScreen.main ?? NSScreen.screens.first
         // 拔屏先直接移回有效屏幕，禁止离屏位置动画。
-        resize(animated: false); save()
+        resize(animated: false); save(); windowTracking.refresh()
     }
     @objc private func accessibilityChanged() {
         if model.reduceMotion { animation?.cancel(); flashTask?.cancel(); model.flash = 0; model.consumptionAnimating = false; resize(animated: false) }
         updateConsumption()
         recordInteraction("accessibility-changed", point: .zero)
     }
-    @objc private func spaceChanged() { syncCodexWindow(); recordInteraction("space-changed", point: .zero) }
+    @objc private func spaceChanged() { syncCodexWindow(forceOrder: true); windowTracking.refresh(); recordInteraction("space-changed", point: .zero) }
     func windowDidResignKey(_ notification: Notification) { if model.keyboardOpened { close() } }
     func stop() {
-        animation?.cancel(); leaveTask?.cancel(); flashTask?.cancel(); windowTracking?.cancel(); stopConsumption(); save()
+        animation?.cancel(); leaveTask?.cancel(); flashTask?.cancel(); windowTracking.stop(); stopConsumption(); save()
         if let localMonitor { NSEvent.removeMonitor(localMonitor) }
         if let globalMonitor { NSEvent.removeMonitor(globalMonitor) }
         NotificationCenter.default.removeObserver(self); NSWorkspace.shared.notificationCenter.removeObserver(self)
