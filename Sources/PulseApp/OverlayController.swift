@@ -209,9 +209,12 @@ enum DockDestination { case screen, codex }
         guard visible else { return }
         configureHostLevel()
         windowTracking.start(on: screen) { [weak self] in
-            guard let self else { return false }
+            guard let self else { return .unavailable }
+            let previous = self.attachedWindow
+            let wasVisible = self.panel.isVisible
             self.syncCodexWindow()
-            return self.visible && self.panel.isVisible && self.attachedWindow?.isOnScreen == true
+            guard self.visible, self.panel.isVisible, self.attachedWindow?.isOnScreen == true else { return .unavailable }
+            return previous != self.attachedWindow || !wasVisible ? .changed : .stationary
         }
     }
 
