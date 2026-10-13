@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Testing
 @testable import PulseApp
 @testable import PulseCore
@@ -7,8 +8,13 @@ import Testing
     var isCodexActive = true
     var items = [CodexWindow(id: 42, frame: CGRect(x: 100, y: 100, width: 800, height: 600), isOnScreen: true)]
     var activations = 0
+    var orderingRequests = 0
     func windows(matching id: CGWindowID?) -> [CodexWindow] { items.filter { id == nil || $0.id == id } }
     func activate() { activations += 1; isCodexActive = true }
+    func orderPanel(_ panel: NSPanel, above window: CodexWindow, force: Bool) {
+        orderingRequests += 1
+        if !panel.isVisible { panel.orderFrontRegardless() }
+    }
 }
 
 @Suite("Codex 窗口吸附生命周期", .serialized) @MainActor struct WindowDockingTests {
@@ -28,9 +34,13 @@ import Testing
         #expect(source.activations == 1 && overlay.windowDock?.side == .right)
         #expect(overlay.panel.isVisible)
         let before = overlay.panel.frame
+        var publications = 0
+        let observation = overlay.model.objectWillChange.sink { publications += 1 }
         source.items = [CodexWindow(id: 42, frame: source.items[0].frame.offsetBy(dx: 50, dy: 70), isOnScreen: true)]
         overlay.syncCodexWindow()
         #expect(overlay.panel.frame == before.offsetBy(dx: 50, dy: 70))
+        #expect(publications == 0) // Moving the host must not rebuild the SwiftUI card.
+        observation.cancel()
         overlay.open()
         #expect(overlay.panel.frame.maxX == before.maxX + 50)
         overlay.close()
@@ -42,7 +52,8 @@ import Testing
         overlay.syncCodexWindow()
         #expect(overlay.panel.isVisible)
         source.isCodexActive = false; overlay.syncCodexWindow()
-        #expect(!overlay.panel.isVisible)
+        #expect(overlay.panel.isVisible)
+        #expect(overlay.panel.level == .normal && !overlay.panel.isFloatingPanel)
         source.isCodexActive = true; overlay.syncCodexWindow()
         #expect(overlay.panel.isVisible)
         overlay.hide(); overlay.syncCodexWindow()
@@ -88,13 +99,16 @@ import Testing
             model.dragBegan?(CGPoint(x: body.midX, y: body.midY))
             model.dragMoved?(CGPoint(x: screen.minX + offset, y: screen.midY))
             #expect(model.side == nil) // Ambiguous drag never preselects a host.
+            #expect(overlay.panel.level == .floating) // Keep a dragged capsule above intervening windows.
             model.dragEnded?()
             #expect(prompts == 1)
             switch choice {
             case .screen:
                 #expect(overlay.windowDock == nil && model.side == .left)
                 #expect(overlay.panel.collectionBehavior.contains(.fullScreenNone))
-            case .codex: #expect(overlay.windowDock?.side == .left)
+            case .codex:
+                #expect(overlay.windowDock?.side == .left)
+                #expect(overlay.panel.level == .normal)
             case nil:
                 #expect(overlay.windowDock == nil && model.side == nil)
                 #expect(overlay.panel.collectionBehavior.contains(.fullScreenNone))
