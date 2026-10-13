@@ -8,7 +8,7 @@ Codex Pulse keeps your **remaining Codex quota and reset countdown** within reac
 
 Built with SwiftUI and AppKit. Quota comes from the official local Codex App Server. The app does not read your conversations.
 
-**[v0.3.2](https://github.com/Roland0511/codex-pulse/releases/tag/v0.3.2) improves window following:** display-synchronized motion, fewer geometry checks while idle, and a capsule that stays with Codex when focus changes. Dock to either inner edge and choose the target when screen and window edges overlap. Signed automatic updates are supported. Version 0.1.3 and earlier need one manual upgrade. [Update guide](docs/UPDATES.md).
+**[v0.3.3](https://github.com/Roland0511/codex-pulse/releases/tag/v0.3.3) stabilizes window following:** correct host occlusion, quicker tracking during fast drags, and fewer geometry checks while idle. Dock to either inner edge and choose the target when screen and window edges overlap. Signed automatic updates are supported. Version 0.1.3 and earlier need one manual upgrade. [Update guide](docs/UPDATES.md).
 
 ## A little presence, useful detail
 

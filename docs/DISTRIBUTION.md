@@ -199,3 +199,15 @@ python3 -m venv .build/packaging
 - 本机由公开 ZIP 更新到 0.3.2 / build 11，应用与 helper 摘要一致；签名、票据、Gatekeeper、单实例及额度读取正常，偏好语义不变。旧版应用与安装前偏好保留于本机。
 - 0.3.1 / build 10 在收到静止节能补充要求后于公开前撤回；保留其签名 tag `v0.3.1` 和公证记录，没有 GitHub 发行或发行附件。旧候选本地标记 WITHDRAWN，不能与正式版本混用。
 - 原生程序移动、查询计时与展开测试见 [验证记录](VERIFICATION.md)。实际鼠标拖动、多屏和全屏仍保留用户实机验收边界。
+
+
+## v0.3.3 / build 12（2026-10-13）
+
+- [公开发行](https://github.com/Roland0511/codex-pulse/releases/tag/v0.3.3)修复静止闪烁、窗口遮挡及高速拖动滞后；PR #11 已合并。独立悬浮 / 屏幕吸附仍置顶，窗口吸附按宿主前方窗口裁切。
+- 构建源码 `0a110a3c5646d24398137ca2a85f26a13171c6d4`，`sourceDirty=false`；[main CI 38356373588](https://github.com/Roland0511/codex-pulse/actions/runs/38356373588) 成功，签名 tag 指向该源码。
+- 应用与 DMG 的 Apple 公证均为 Accepted；双架构、附票、Gatekeeper、嵌套签名及 ZIP / DMG 内应用独立核验通过。
+- 发布器完成草稿附件回读、四个匿名下载及 Latest 签名更新清单同步核验。
+- `CodexPulse-0.3.3-universal-notarized.dmg` SHA-256：`12238e81eca9bcc16775a5dc591b9d132ced28ee267d09f98eecfe51aa56715d`。
+- `CodexPulse-0.3.3-universal-notarized.zip` SHA-256：`c7b0c277f71d56835508524cd156d38f13a13bf34154cd3b3de848cde0b4ed93`。
+- `appcast.xml` SHA-256：`ceb6d0df4945b9947e1f113f4bc04992204a91062e9c1a6a9280aca5cb8cef81`。
+- 用户对相同功能实现的本地签名候选确认“遮挡正常，高速跟随明显改善”；不扩大为多屏 / 全屏已验收。正式本机安装由公开 ZIP 完成，二进制 / helper 摘要一致，签名、票据、Gatekeeper、单实例与额度读取正常，偏好语义保持不变。测试候选已退出，旧版应用与偏好保留于本机。
