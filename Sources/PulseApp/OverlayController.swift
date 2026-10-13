@@ -4,7 +4,48 @@ import PulseCore
 import SwiftUI
 
 @MainActor final class PulsePanel: NSPanel {
+    static let attachedLevel = NSWindow.Level(rawValue: NSWindow.Level.normal.rawValue + 1)
     var keyboardEnabled = false
+    private let clipping = PanelClipMask()
+    private var pointerLocation = CGPoint.zero
+    private(set) var occludingFrames: [CGRect] = []
+    func setOccludingFrames(_ rawFrames: [CGRect]) {
+        let frames = rawFrames.sorted {
+            if $0.minX != $1.minX { return $0.minX < $1.minX }
+            if $0.minY != $1.minY { return $0.minY < $1.minY }
+            if $0.width != $1.width { return $0.width < $1.width }
+            return $0.height < $1.height
+        }
+        guard frames != occludingFrames else { return }
+        let newlyCovered = occludingFrames.isEmpty && !frames.isEmpty
+        occludingFrames = frames
+        refreshOcclusion()
+        if newlyCovered { refreshPointerPassthrough() }
+    }
+    func refreshPointerPassthrough(at point: CGPoint? = nil) {
+        guard !occludingFrames.isEmpty else {
+            if ignoresMouseEvents { ignoresMouseEvents = false }
+            return
+        }
+        pointerLocation = point ?? NSEvent.mouseLocation
+        applyPointerPassthrough()
+    }
+    private func applyPointerPassthrough() {
+        let blocked = occludingFrames.contains { $0.contains(pointerLocation) }
+        if ignoresMouseEvents != blocked { ignoresMouseEvents = blocked }
+    }
+    private func refreshOcclusion() {
+        if let contentView { clipping.apply(PanelVisibleRegion(frame: frame, covers: occludingFrames), to: contentView) }
+        applyPointerPassthrough()
+    }
+    override func setFrame(_ frameRect: NSRect, display flag: Bool) {
+        super.setFrame(frameRect, display: flag)
+        if !occludingFrames.isEmpty { refreshOcclusion() }
+    }
+    override func setFrameOrigin(_ point: NSPoint) {
+        super.setFrameOrigin(point)
+        if !occludingFrames.isEmpty { refreshOcclusion() }
+    }
     override var canBecomeKey: Bool { keyboardEnabled }
     override var canBecomeMain: Bool { false }
     override func cancelOperation(_ sender: Any?) { (delegate as? OverlayController)?.close() }
@@ -30,6 +71,7 @@ enum DockDestination { case screen, codex }
     private var localMonitor: Any?
     private var globalMonitor: Any?
     private var subscriptions: Set<AnyCancellable> = []
+    private var hostDrag: HostDragPrediction?
     private var startPoint: NSPoint?
     private var startFrame = CGRect.zero
     private var moved = false
@@ -51,7 +93,8 @@ enum DockDestination { case screen, codex }
         panel.becomesKeyOnlyIfNeeded = true; panel.isMovable = false
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenNone]
         panel.delegate = self
-        panel.contentView = NSHostingView(rootView: OverlayView(store: store, model: model))
+        panel.contentView = PanelMaskContainer(hosting: NSHostingView(rootView: OverlayView(store: store, model: model)))
+        panel.acceptsMouseMovedEvents = true
         model.toggle = { [weak self] in self?.toggleDetails() }
         model.close = { [weak self] in self?.close() }
         model.detailsSizeChanged = { [weak self] height in
@@ -86,13 +129,37 @@ enum DockDestination { case screen, codex }
                 if self.model.expanded { self.resize(animated: true) }
             }
         }.store(in: &subscriptions)
-        localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] event in
+        localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown, .mouseMoved]) { [weak self] event in
             guard let self else { return event }
+            if event.type == .mouseMoved {
+                self.panel.refreshPointerPassthrough(at: event.window?.convertPoint(toScreen: event.locationInWindow) ?? NSEvent.mouseLocation)
+                return event
+            }
             if event.type == .keyDown, event.keyCode == 53, self.model.expanded { self.close(); return nil }
             if event.type != .keyDown, event.window !== self.panel { self.close() }
             return event
         }
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in self?.close() }
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp, .rightMouseDown, .mouseMoved, .leftMouseDragged]) { [weak self] event in
+            guard let self else { return }
+            let point = Self.screenPoint(event)
+            self.panel.refreshPointerPassthrough(at: point)
+            if event.type == .leftMouseDown {
+                if let window = self.attachedWindow, self.windowDock != nil, window.frame.contains(point) {
+                    self.hostDrag = HostDragPrediction(window: window, point: point, time: event.timestamp)
+                }
+                self.close()
+            } else if event.type == .leftMouseDragged {
+                self.hostDrag?.record(point, at: event.timestamp)
+                if let frame = self.hostDrag?.predictedFrame, let window = self.attachedWindow,
+                   let positioned = self.windowDock?.frame(in: frame, visible: self.visibleFrame,
+                        size: CGSize(width: self.model.width, height: self.model.height), compactHeight: DesignTokens.height) {
+                    self.attachedWindow = CodexWindow(id: window.id, frame: frame, isOnScreen: window.isOnScreen)
+                    self.applyFrame(positioned)
+                }
+            } else if event.type == .leftMouseUp {
+                self.hostDrag = nil; self.windowTracking.refresh()
+            } else if event.type == .rightMouseDown { self.close() }
+        }
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(accessibilityChanged), name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(spaceChanged), name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
@@ -101,6 +168,10 @@ enum DockDestination { case screen, codex }
         }
     }
 
+    private static func screenPoint(_ event: NSEvent) -> CGPoint {
+        guard let point = event.cgEvent?.location, let height = NSScreen.screens.first?.frame.height else { return NSEvent.mouseLocation }
+        return CGPoint(x: point.x, y: height - point.y)
+    }
     private func screenID(_ screen: NSScreen) -> String {
         let id = (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
         if let uuid = CGDisplayCreateUUIDFromDisplayID(id)?.takeRetainedValue(), let string = CFUUIDCreateString(nil, uuid) { return string as String }
@@ -147,7 +218,7 @@ enum DockDestination { case screen, codex }
         updateConsumption()
         if keyboard { open(keyboard: true) }
     }
-    func hide() { close(); stopConsumption(); visible = false; store.hidden = true; windowTracking.stop(); panel.orderOut(nil) }
+    func hide() { close(); stopConsumption(); visible = false; store.hidden = true; windowTracking.stop(); hostDrag = nil; panel.orderOut(nil) }
     func toggleVisible() { if visible { hide() } else { show() } }
     func toggleDetails() { if model.expanded { close() } else { open() } }
     func open(keyboard: Bool = false) {
@@ -175,8 +246,9 @@ enum DockDestination { case screen, codex }
         resize(animated: true)
     }
     func place(_ side: DockSide?) {
-        windowTracking.stop(); windowDock = nil; attachedWindow = nil
+        windowTracking.stop(); hostDrag = nil; windowDock = nil; attachedWindow = nil
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenNone]
+        panel.setOccludingFrames([])
         panel.isFloatingPanel = true; panel.level = .floating
         model.side = side; model.blend = side == nil ? 0 : 1
         model.expanded = false; model.hovered = false
@@ -203,6 +275,7 @@ enum DockDestination { case screen, codex }
         windowTracking.stop()
         guard windowDock != nil else {
             panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenNone]
+            panel.setOccludingFrames([])
             panel.isFloatingPanel = true; panel.level = .floating
             return
         }
@@ -212,16 +285,17 @@ enum DockDestination { case screen, codex }
             guard let self else { return .unavailable }
             let previous = self.attachedWindow
             let wasVisible = self.panel.isVisible
+            let previousCovers = self.panel.occludingFrames
             self.syncCodexWindow()
             guard self.visible, self.panel.isVisible, self.attachedWindow?.isOnScreen == true else { return .unavailable }
-            return previous != self.attachedWindow || !wasVisible ? .changed : .stationary
+            return previous != self.attachedWindow || previousCovers != self.panel.occludingFrames || !wasVisible ? .changed : .stationary
         }
     }
 
     private func configureHostLevel() {
         if panel.isFloatingPanel { panel.isFloatingPanel = false }
-        if panel.level != .normal { panel.level = .normal }
-        let behavior: NSWindow.CollectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
+        if panel.level != PulsePanel.attachedLevel { panel.level = PulsePanel.attachedLevel }
+        let behavior: NSWindow.CollectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .canJoinAllApplications]
         if panel.collectionBehavior != behavior { panel.collectionBehavior = behavior }
     }
 
@@ -231,6 +305,10 @@ enum DockDestination { case screen, codex }
         let previous = attachedWindow
         let existing = attachedWindow.flatMap { windowSource.windows(matching: $0.id).first }
         attachedWindow = existing ?? windowSource.windows(matching: nil).first(where: { $0.isOnScreen })
+        if let window = attachedWindow,
+           let predicted = hostDrag?.reconcile(window, at: ProcessInfo.processInfo.systemUptime) {
+            attachedWindow = CodexWindow(id: window.id, frame: predicted, isOnScreen: window.isOnScreen)
+        }
         if let window = attachedWindow, previous?.frame != window.frame || forceOrder {
             let eligible = NSScreen.screens.filter {
                 windowDock?.frame(in: window.frame, visible: $0.visibleFrame, size: targetSize(), compactHeight: DesignTokens.height) != nil
@@ -274,6 +352,7 @@ enum DockDestination { case screen, codex }
     }
     private func beginDrag(_ point: NSPoint) {
         recordInteraction("drag-began", point: point)
+        hostDrag = nil
         leaveTask?.cancel(); animation?.cancel()
         startPoint = point; startFrame = bodyFrame; moved = false; dragProposal = nil; dragWindow = nil
     }
@@ -282,8 +361,8 @@ enum DockDestination { case screen, codex }
         guard let startPoint else { return }
         let dx = point.x - startPoint.x, dy = point.y - startPoint.y
         if !moved && hypot(dx, dy) < DesignTokens.dragThreshold { return }
-        windowTracking.stop(); windowDock = nil; attachedWindow = nil
-        if !moved { panel.isFloatingPanel = true; panel.level = .floating }
+        windowTracking.stop(); hostDrag = nil; windowDock = nil; attachedWindow = nil
+        if !moved { panel.setOccludingFrames([]); panel.isFloatingPanel = true; panel.level = .floating }
         moved = true; model.expanded = false; model.keyboardOpened = false; panel.keyboardEnabled = false
         // 从标签拖动时以当前指针抓取比例转换到自由胶囊，避免跳到指针另一侧。
         let grab = min(1, max(0, (startPoint.x - startFrame.minX) / max(1, startFrame.width)))

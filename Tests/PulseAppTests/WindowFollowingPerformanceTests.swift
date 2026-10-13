@@ -1,6 +1,7 @@
 import AppKit
 import Darwin
 import Combine
+import QuartzCore
 @testable import PulseCore
 import Testing
 @testable import PulseApp
@@ -16,48 +17,61 @@ import Testing
         reads.append(ProcessInfo.processInfo.systemUptime)
         return [CodexWindow(id: UInt32(window.windowNumber), frame: window.frame, isOnScreen: true)]
     }
-    func orderPanel(_ panel: NSPanel, above host: CodexWindow, force: Bool) {
+    func orderPanel(_ panel: PulsePanel, above host: CodexWindow, force: Bool) {
         if force || !panel.isVisible { panel.order(.above, relativeTo: window.windowNumber) }
     }
 }
 
 @Suite("窗口跟随渲染与层级", .serialized) @MainActor struct WindowFollowingPerformanceTests {
-    @Test func normalLevelTracksHostWithoutCoveringForegroundWindow() async throws {
+    @Test func stableLevelClipsForegroundWithoutRepeatedOrdering() async throws {
         _ = NSApplication.shared
         let rect = CGRect(x: 150, y: 150, width: 400, height: 300)
         let host = NSWindow(contentRect: rect, styleMask: [.borderless], backing: .buffered, defer: false)
-        let foreground = NSWindow(contentRect: rect, styleMask: [.borderless], backing: .buffered, defer: false)
-        let panel = NSPanel(contentRect: CGRect(x: 150, y: 180, width: 54, height: 36), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        let foreground = NSWindow(contentRect: CGRect(x: 170, y: 180, width: 330, height: 230), styleMask: [.borderless], backing: .buffered, defer: false)
+        let panel = PulsePanel(contentRect: CGRect(x: 150, y: 180, width: 54, height: 36), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel.contentView = NSView()
         for window in [host, foreground, panel] { window.isReleasedWhenClosed = false; window.level = .normal }
+        panel.level = PulsePanel.attachedLevel
         defer { for window in [panel, foreground, host] { window.orderOut(nil); window.close() } }
-        func waitForOrder(_ windows: [NSWindow]) async throws {
-            var matched = false
-            for _ in 0..<100 {
-                let rows = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as? [[String: Any]] ?? []
-                let ids = rows.compactMap { ($0[kCGWindowNumber as String] as? NSNumber)?.intValue }
-                let positions = windows.compactMap { ids.firstIndex(of: $0.windowNumber) }
-                matched = positions.count == windows.count && zip(positions, positions.dropFirst()).allSatisfy { $0 < $1 }
-                if matched { return }
-                try await Task.sleep(for: .milliseconds(10))
-            }
-            #expect(matched, "Window Server did not reach the expected front-to-back order")
-        }
         host.orderFrontRegardless(); foreground.orderFrontRegardless()
-        try await waitForOrder([foreground, host])
-        let source = SystemCodexWindowSource()
-        let target = CodexWindow(id: UInt32(host.windowNumber), frame: host.frame, isOnScreen: true)
-        source.orderPanel(panel, above: target, force: true)
-        try await waitForOrder([foreground, panel, host])
+        let source = SystemCodexWindowSource(ownerPIDs: { [getpid()] })
+        var sawCover = false
+        for _ in 0..<100 {
+            if let target = source.windows(matching: UInt32(host.windowNumber)).first {
+                source.orderPanel(panel, above: target, force: true)
+                if panel.occludingFrames.contains(foreground.frame) { sawCover = true; break }
+            }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(sawCover)
         #expect(panel.isVisible)
-        host.orderFrontRegardless()
-        try await waitForOrder([host, foreground])
-        source.orderPanel(panel, above: target, force: true)
-        try await waitForOrder([panel, host, foreground])
-        foreground.orderFrontRegardless()
-        try await waitForOrder([foreground, host])
-        source.orderPanel(panel, above: target, force: true)
-        try await waitForOrder([foreground, panel, host])
-        #expect(panel.isVisible) // Occlusion is not an application-focus hide operation.
+        let region = PanelVisibleRegion(frame: panel.frame, covers: panel.occludingFrames)
+        #expect(region.contains(CGPoint(x: 155, y: 190)))
+        #expect(!region.contains(CGPoint(x: 190, y: 190)))
+        let mask = try #require(panel.contentView?.layer?.mask as? CAShapeLayer)
+        #expect(mask.path?.contains(CGPoint(x: 5, y: 10)) == true)
+        #expect(mask.path?.contains(CGPoint(x: 40, y: 10)) == false)
+        panel.refreshPointerPassthrough(at: CGPoint(x: 190, y: 190))
+        #expect(panel.ignoresMouseEvents)
+        panel.refreshPointerPassthrough(at: CGPoint(x: 155, y: 190))
+        #expect(!panel.ignoresMouseEvents)
+        // Keep activating the host's native window group; the overlay cannot be pushed below it.
+        for _ in 0..<15 {
+            host.orderFrontRegardless()
+            try await Task.sleep(for: .milliseconds(20))
+            let rows = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as? [[String: Any]] ?? []
+            let ids = rows.compactMap { ($0[kCGWindowNumber as String] as? NSNumber)?.intValue }
+            #expect(try #require(ids.firstIndex(of: panel.windowNumber)) < #require(ids.firstIndex(of: host.windowNumber)))
+        }
+        foreground.orderOut(nil)
+        for _ in 0..<100 {
+            let target = try #require(source.windows(matching: UInt32(host.windowNumber)).first)
+            source.orderPanel(panel, above: target, force: true)
+            if panel.occludingFrames.isEmpty { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(panel.occludingFrames.isEmpty)
+        #expect(panel.contentView?.layer?.mask == nil)
     }
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["PULSE_NATIVE_FOLLOW_BENCHMARK"] == "1"))

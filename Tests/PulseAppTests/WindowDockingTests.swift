@@ -11,7 +11,7 @@ import Testing
     var orderingRequests = 0
     func windows(matching id: CGWindowID?) -> [CodexWindow] { items.filter { id == nil || $0.id == id } }
     func activate() { activations += 1; isCodexActive = true }
-    func orderPanel(_ panel: NSPanel, above window: CodexWindow, force: Bool) {
+    func orderPanel(_ panel: PulsePanel, above window: CodexWindow, force: Bool) {
         orderingRequests += 1
         if !panel.isVisible { panel.orderFrontRegardless() }
     }
@@ -53,7 +53,7 @@ import Testing
         #expect(overlay.panel.isVisible)
         source.isCodexActive = false; overlay.syncCodexWindow()
         #expect(overlay.panel.isVisible)
-        #expect(overlay.panel.level == .normal && !overlay.panel.isFloatingPanel)
+        #expect(overlay.panel.level == PulsePanel.attachedLevel && !overlay.panel.isFloatingPanel)
         source.isCodexActive = true; overlay.syncCodexWindow()
         #expect(overlay.panel.isVisible)
         overlay.hide(); overlay.syncCodexWindow()
@@ -108,7 +108,7 @@ import Testing
                 #expect(overlay.panel.collectionBehavior.contains(.fullScreenNone))
             case .codex:
                 #expect(overlay.windowDock?.side == .left)
-                #expect(overlay.panel.level == .normal)
+                #expect(overlay.panel.level == PulsePanel.attachedLevel)
             case nil:
                 #expect(overlay.windowDock == nil && model.side == nil)
                 #expect(overlay.panel.collectionBehavior.contains(.fullScreenNone))
