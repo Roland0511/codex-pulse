@@ -8,7 +8,7 @@ Codex Pulse 把 **Codex 剩余额度和重置倒计时**，放进一枚随手可
 
 使用 SwiftUI 与 AppKit 原生构建，通过官方本地 Codex App Server 读取额度，不读取聊天内容。
 
-**[v0.3.0](https://github.com/Roland0511/codex-pulse/releases/tag/v0.3.0) 支持跟随 Codex 窗口：** 可吸附到窗口左右内侧；窗口与屏幕边缘重叠时，松开后选择具体吸附对象。支持签名自动更新。0.1.3 及更早版本需手动升级一次，之后可在应用内更新。[更新指南](docs/UPDATES.md)。
+**[v0.3.2](https://github.com/Roland0511/codex-pulse/releases/tag/v0.3.2) 优化窗口跟随：** 移动时随显示刷新同步、静止时降低位置查询频率，Codex 失焦后仍保持吸附。可吸附到窗口左右内侧；窗口与屏幕边缘重叠时，松开后选择具体吸附对象。支持签名自动更新。0.1.3 及更早版本需手动升级一次，之后可在应用内更新。[更新指南](docs/UPDATES.md)。
 
 ## 轻巧，但该知道的都在
 

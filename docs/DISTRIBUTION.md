@@ -185,3 +185,17 @@ python3 -m venv .build/packaging
 - 本机从公开 ZIP 更新为 0.3.0 / build 9，应用二进制和 helper 与公开包一致；签名、票据、Gatekeeper 和单实例通过，安装前后的偏好语义一致。旧版应用与偏好备份保留在本机。
 - 首轮源码 `2464ba5` 的未公开候选在发布前撤回，保留于本机 `withdrawn-v0.3.0-build9-2464ba5/`；没有为它创建 tag 或公开发行。其 Apple 提交记录保留，不能当作本次发布产物。
 - 原生菜单可见性与合成几何 / 生命周期回归不等于真实窗口移动、多屏或全屏验收；手动交互边界见 [验证记录](VERIFICATION.md)。
+
+
+## v0.3.2 / build 11（2026-10-13）
+
+- [公开发行](https://github.com/Roland0511/codex-pulse/releases/tag/v0.3.2)包含流畅窗口跟随、失焦保留和静止节能。PR #9、#10 已合并。
+- 构建源码 `0724db6e34a0c9cabadad0f3aea87f1adaf0b4f4`，`sourceDirty=false`；[main CI 38354711020](https://github.com/Roland0511/codex-pulse/actions/runs/38354711020) 成功，签名 tag 指向该源码。
+- 应用和 DMG 的 Apple 公证均为 Accepted；双架构、附票、Gatekeeper、嵌套签名及 ZIP / DMG 内应用独立核验通过。
+- 发布器完成草稿上传、附件回读、四个匿名下载及 Latest 签名更新清单同步核验。
+- `CodexPulse-0.3.2-universal-notarized.dmg` SHA-256：`5f57f354e9d92c156beb7fad054e7431e51896d47da78d50b7dc72c1f261caf0`。
+- `CodexPulse-0.3.2-universal-notarized.zip` SHA-256：`21c2910c7e7f63819eb8b1df035dc6cae82c08025c4dca2aec9855db9b118906`。
+- `appcast.xml` SHA-256：`d563870478ab83358395ae079f8019f67677a5a2d697e9607bfc4ab5d71bff7a`。
+- 本机由公开 ZIP 更新到 0.3.2 / build 11，应用与 helper 摘要一致；签名、票据、Gatekeeper、单实例及额度读取正常，偏好语义不变。旧版应用与安装前偏好保留于本机。
+- 0.3.1 / build 10 在收到静止节能补充要求后于公开前撤回；保留其签名 tag `v0.3.1` 和公证记录，没有 GitHub 发行或发行附件。旧候选本地标记 WITHDRAWN，不能与正式版本混用。
+- 原生程序移动、查询计时与展开测试见 [验证记录](VERIFICATION.md)。实际鼠标拖动、多屏和全屏仍保留用户实机验收边界。
