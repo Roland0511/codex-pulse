@@ -6,7 +6,14 @@ import SwiftUI
 
 @MainActor private final class HostingTestWindows: CodexWindowSource {
     var isCodexActive = true
-    var host = CodexWindow(id: 42, frame: CGRect(x: 300, y: 200, width: 800, height: 600), isOnScreen: true)
+    var host: CodexWindow
+    init() {
+        let visible = NSScreen.main?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1024, height: 768)
+        // Leave room for the later translation on CI's smaller virtual display.
+        // Screen-edge clipping has separate tests; this test expects an unclipped host.
+        host = CodexWindow(id: 42, frame: CGRect(x: visible.minX + 60, y: visible.minY + 60,
+            width: min(800, visible.width - 160), height: min(600, visible.height - 120)), isOnScreen: true)
+    }
     func windows(matching id: CGWindowID?) -> [CodexWindow] { id == nil || id == host.id ? [host] : [] }
     func activate() {}
     func orderPanel(_ panel: PulsePanel, above window: CodexWindow, force: Bool) { if !panel.isVisible { panel.orderFrontRegardless() } }
