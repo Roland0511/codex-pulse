@@ -142,5 +142,11 @@
   "details.cached": "缓存于 %@",
   "menu.codexLeft": "Codex 窗口左内侧",
   "menu.codexRight": "Codex 窗口右内侧",
-  "dock.chooseTarget": "选择吸附对象"
+  "dock.chooseTarget": "选择吸附对象",
+  "speed.standard": "标准",
+  "speed.fast": "快速",
+  "speed.ultrafast": "超快",
+  "speed.unknown": "速度尚未确认",
+  "speed.default": "默认速度：%@",
+  "speed.working": "工作速度：%@"
 }

@@ -8,7 +8,7 @@ Codex Pulse keeps your **remaining Codex quota and reset countdown** within reac
 
 Built with SwiftUI and AppKit. Quota comes from the official local Codex App Server. The app does not read your conversations.
 
-**[v0.3.3](https://github.com/Roland0511/codex-pulse/releases/tag/v0.3.3) stabilizes window following:** correct host occlusion, quicker tracking during fast drags, and fewer geometry checks while idle. Dock to either inner edge and choose the target when screen and window edges overlap. Signed automatic updates are supported. Version 0.1.3 and earlier need one manual upgrade. [Update guide](docs/UPDATES.md).
+**[v0.4.0](https://github.com/Roland0511/codex-pulse/releases/tag/v0.4.0) adds three speed effects:** the standard trace, fast gold arcs, and stronger ultrafast twin arcs. Short filled segments simplify to a single current or pulse. Left-edge docking and trace alignment are fixed. Adaptive window following and signed automatic updates remain available. Version 0.1.3 and earlier need one manual upgrade. [Update guide](docs/UPDATES.md).
 
 ## A little presence, useful detail
 
@@ -56,7 +56,7 @@ Low quota alerts and launch at login are also **off by default**. Notification p
 - **No Pulse backend or analytics.** Snapshots stay in memory. Preferences, hook backups, and alert deduplication stay on your Mac.
 - **No account actions.** Pulse does not reset quota, buy credits, sign you out, or control agents.
 
-Following Codex appearance reads a small allowlist of theme settings. Enabling work animation explicitly changes local hook configuration. Quota RPCs are read-only; startup model-catalog refreshes are disabled. The official CLI may backfill a private session-metadata index in `~/Library/Application Support/CodexPulse/QuotaState/`; it is retained across launches to avoid repeated history scans. Model-catalog copies and logs remain temporary. Authentication stays with the official CLI.
+Following Codex appearance and speed reads a small allowlist of theme and service_tier settings. Work animation can connect to an already running local official service to project speed-setting metadata and hash session identifiers. Unconfirmed sessions use the saved default tier; missing configuration stays unknown. No chat history or content is queried. Enabling work animation explicitly changes local hook configuration. Quota RPCs are read-only; startup model-catalog refreshes are disabled. The official CLI may backfill a private session-metadata index in `~/Library/Application Support/CodexPulse/QuotaState/`; it is retained across launches to avoid repeated history scans. Model-catalog copies and logs remain temporary. Authentication stays with the official CLI.
 
 ## Build it yourself
 

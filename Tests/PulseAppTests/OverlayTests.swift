@@ -4,6 +4,16 @@ import AppKit
 @testable import PulseCore
 
 @Suite("固定吸附长条") @MainActor struct OverlayTests {
+    private func isolatedOverlay(store: QuotaStore, model: OverlayModel) throws -> OverlayController {
+        let original = LocalDefaults.store
+        let suite = "dev.roland.codex-pulse.activity-overlay-tests.\(UUID().uuidString)"
+        let isolated = try #require(UserDefaults(suiteName: suite))
+        LocalDefaults.store = isolated
+        defer { LocalDefaults.store = original; isolated.removePersistentDomain(forName: suite) }
+        // Lifecycle assertions must not inherit the user's saved Codex attachment
+        // and become hidden when the real host is unavailable to the test process.
+        return OverlayController(store: store, model: model)
+    }
     @Test func pinSurvivesMouseLeaveAndOnlyAffectsDockedWidth() {
         let model = OverlayModel()
         #expect(model.compactWidth == DesignTokens.capsuleWidth)
@@ -24,7 +34,7 @@ import AppKit
         _ = NSApplication.shared
         let store = QuotaStore(client: QuotaClient(executable: nil), demo: true, demoScenario: "working")
         let model = OverlayModel(motionPreference: { false })
-        let overlay = OverlayController(store: store, model: model)
+        let overlay = try isolatedOverlay(store: store, model: model)
         defer { store.stop(); overlay.stop() }
         store.start()
         try await Task.sleep(for: .milliseconds(100))
@@ -44,7 +54,7 @@ import AppKit
         _ = NSApplication.shared
         let store = QuotaStore(client: QuotaClient(executable: nil), demo: true, demoScenario: "working")
         let model = OverlayModel(motionPreference: { true })
-        let overlay = OverlayController(store: store, model: model)
+        let overlay = try isolatedOverlay(store: store, model: model)
         defer { store.stop(); overlay.stop() }
         store.start(); try await Task.sleep(for: .milliseconds(100))
         #expect(model.consumptionDetected && model.working && !model.consumptionAnimating)
@@ -54,7 +64,7 @@ import AppKit
         _ = NSApplication.shared
         let store = QuotaStore(client: QuotaClient(executable: nil), demo: true, demoScenario: "consuming")
         let model = OverlayModel(motionPreference: { false })
-        let overlay = OverlayController(store: store, model: model)
+        let overlay = try isolatedOverlay(store: store, model: model)
         defer { store.stop(); overlay.stop() }
         store.start(); try await Task.sleep(for: .milliseconds(100))
         #expect(model.consumptionDetected && model.consumptionAnimating && !model.working)

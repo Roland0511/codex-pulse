@@ -47,6 +47,13 @@ struct OverlayView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var refreshFocused: Bool
     private var selected: QuotaWindow? { store.state.snapshot?.selectedWindow }
+    private var speedTier: SpeedTier {
+        store.demo ? store.demoSpeed : store.confirmedSpeedTier ?? appearance.speed.tier
+    }
+    private var speedSummary: String {
+        guard speedTier != .unknown else { return tr("speed.unknown") }
+        return tr(store.confirmedSpeedTier != nil || store.demo ? "speed.working" : "speed.default", tr("speed." + speedTier.rawValue))
+    }
     private var showsPin: Bool { model.side != nil && model.width >= DesignTokens.countdownRevealFrom }
     private var restricted: Bool { store.state.snapshot?.ordinaryUsageAllowed == false || store.state.snapshot?.hasReachedLimit == true }
     private var tint: Color {
@@ -77,24 +84,29 @@ struct OverlayView: View {
         return tr("quota.summary", statusText, selected.localizedName(using: text), percentage,
                   QuotaText.countdown(selected.resetsAt, now: store.now, using: text)) +
             (model.consumptionDetected ? " · \(model.consumptionMessage)" : "")
+            + (model.working ? " · \(speedSummary)" : "")
     }
     var body: some View {
         ZStack(alignment: .top) {
             CapsuleContour(side: model.side, blend: model.blend)
                 .fill(palette.surface)
+                .frame(width: model.width, height: model.height)
                 .shadow(color: .black.opacity(0.14), radius: 8, y: 3)
             CapsuleContour(side: model.side, blend: model.blend)
                 .stroke(palette.edge, lineWidth: DesignTokens.outlineWidth)
+                .frame(width: model.width, height: model.height)
             if model.flash > 0 {
                 CapsuleContour(side: model.side, blend: model.blend, openEdge: model.side != nil)
                     .stroke(palette.signal.opacity(model.flash), lineWidth:
                                 DesignTokens.outlineWidth + (DesignTokens.peakOutlineWidth - DesignTokens.outlineWidth) * model.flash)
+                    .frame(width: model.width, height: model.height)
                     .allowsHitTesting(false)
             }
             Group {
                 if model.expanded { details }
                 else { header }
             }
+            .frame(width: model.width, height: model.height, alignment: .topLeading)
             .clipShape(RoundedRectangle(cornerRadius: DesignTokens.outerRadius))
         }
         .frame(width: model.width, height: model.height)
@@ -108,10 +120,9 @@ struct OverlayView: View {
             HStack(spacing: 7) {
                 Text(percentage).font(.system(size: 14, weight: .medium, design: .rounded)).monospacedDigit()
                     .foregroundStyle(palette.ink).fixedSize()
-                if store.status != .ready || restricted || store.demo {
+                if model.width >= DesignTokens.percentageOnlyBelowWidth && (store.status != .ready || restricted || store.demo) {
                     Image(systemName: store.demo ? "eye" : "exclamationmark.circle").font(.system(size: 10))
                         .foregroundStyle(palette.warning)
-                        .opacity(model.width < DesignTokens.percentageOnlyBelowWidth ? 0 : 1)
                 }
                 if model.width >= DesignTokens.percentageOnlyBelowWidth {
                     Text(compactDescription).font(.system(size: 10.5)).foregroundStyle(palette.muted)
@@ -131,25 +142,9 @@ struct OverlayView: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { model.toggle?() }
             .accessibilityHint(tr("quota.hint"))
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(palette.track)
-                    if let value = selected?.remainingPercent {
-                        ZStack {
-                            Capsule().fill(tint)
-                            if model.consumptionAnimating, value > 0 {
-                                // 流光与填充段共用宽度和裁切，额度变化时也不越界。
-                                AnimatedConsumptionTrace(signal: palette.signal)
-                                    .frame(height: 2)
-                                    .accessibilityHidden(true)
-                            }
-                        }
-                            .frame(width: geometry.size.width * value / 100, height: 2)
-                            .clipShape(Capsule())
-                            .animation(reduceMotion ? nil : .easeOut(duration: DesignTokens.barSeconds), value: value)
-                    }
-                }
-            }.frame(height: 2).padding(.horizontal, 10).padding(.bottom, 5)
+            QuotaProgressTrack(remaining: selected?.remainingPercent, color: tint, track: palette.track, surface: palette.surface,
+                animating: model.consumptionAnimating, speed: speedTier, reduceMotion: reduceMotion)
+                .padding(.horizontal, 10).padding(.bottom, 5)
         }
         .frame(height: DesignTokens.height)
         .contentShape(Rectangle())
@@ -287,22 +282,9 @@ struct OverlayView: View {
                     .font(.system(size: 28, weight: .medium, design: .rounded)).monospacedDigit()
                     .foregroundStyle(palette.ink).fixedSize()
             }
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(palette.track)
-                    if let value = window.remainingPercent {
-                        ZStack {
-                            Capsule().fill(color)
-                            if model.consumptionAnimating, window.id == selected?.id, value > 0 {
-                                AnimatedConsumptionTrace(signal: palette.signal).accessibilityHidden(true)
-                            }
-                        }
-                        .frame(width: geometry.size.width * value / 100)
-                        .clipShape(Capsule())
-                        .animation(reduceMotion ? nil : .easeOut(duration: DesignTokens.barSeconds), value: value)
-                    }
-                }
-            }.frame(height: 2).accessibilityHidden(true)
+            QuotaProgressTrack(remaining: window.remainingPercent, color: color, track: palette.track, surface: palette.surface,
+                animating: model.consumptionAnimating && window.id == selected?.id,
+                speed: speedTier, reduceMotion: reduceMotion)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(tr("quota.summary", statusText, window.localizedName(using: text),

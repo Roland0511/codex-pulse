@@ -14,9 +14,13 @@ import UserNotifications
     var reminderMessage: String? { reminderMessageKey.map { tr($0) } }
     let client: QuotaClient
     let activity: ActivityStore
+    let speedMetadata: SpeedMetadataStore
+    @Published private(set) var confirmedSpeedTier: SpeedTier?
+    private var speedSubscriptions: Set<AnyCancellable> = []
     private var activitySubscription: AnyCancellable?
     let demo: Bool
     let demoScenario: String
+    let demoSpeed: SpeedTier
     private var policy = RefreshPolicy()
     private var alerts: AlertPolicy
     private var observedIdentity: String?
@@ -40,12 +44,17 @@ import UserNotifications
     var status: DataStatus { state.status(now: now) }
     @Published private(set) var remindersEnabled = false
 
-    init(client: QuotaClient, demo: Bool = false, demoScenario: String = "normal", activity: ActivityStore? = nil) {
+    init(client: QuotaClient, demo: Bool = false, demoScenario: String = "normal", activity: ActivityStore? = nil, demoSpeed: SpeedTier = .standard) {
         self.client = client; self.demo = demo; self.demoScenario = demoScenario
+        self.demoSpeed = demoSpeed
         self.activity = activity ?? ActivityStore()
+        speedMetadata = SpeedMetadataStore()
         if let data = LocalDefaults.store.data(forKey: "alertLedger"),
            let decoded = try? JSONDecoder().decode(AlertPolicy.self, from: data) { alerts = decoded }
         else { alerts = AlertPolicy() }
+        let metadata = speedMetadata
+        self.activity.$workingSessions.removeDuplicates().sink { [weak metadata] in metadata?.workingSessions($0) }.store(in: &speedSubscriptions)
+        metadata.$tier.removeDuplicates().sink { [weak self] in self?.confirmedSpeedTier = $0 }.store(in: &speedSubscriptions)
         if ProcessInfo.processInfo.environment["PULSE_DIAGNOSTICS_FILE"] != nil, !demo {
             self.activity.onDiagnosticSignal = { [weak self] in self?.recordDiagnosticSignal() }
         }
@@ -79,7 +88,7 @@ import UserNotifications
         clockTimer?.tolerance = 5
         if demo {
             let date = Date()
-            var windows = [QuotaWindow(bucketID: "demo", slot: "primary", usedPercent: demoScenario == "low" ? 93 : 3, durationMinutes: 10080,
+            var windows = [QuotaWindow(bucketID: "demo", slot: "primary", usedPercent: demoScenario == "low" || demoScenario == "working-low" ? 93 : 3, durationMinutes: 10080,
                                        resetsAt: date.addingTimeInterval(6 * 86400))]
             if demoScenario == "long" {
                 windows = (0..<8).map { index in
@@ -105,7 +114,7 @@ import UserNotifications
                     Task { @MainActor in self?.consumptionSerial += 1 }
                 }
             }
-            if demoScenario == "working" { working = true }
+            if demoScenario == "working" || demoScenario == "working-low" { working = true }
         } else { activity.start(); refresh() }
     }
 
@@ -208,12 +217,12 @@ import UserNotifications
 
     func suspend() {
         suspended = true; epoch += 1
-        activity.suspend()
+        activity.suspend(); speedMetadata.suspend()
         scheduler?.cancel(); resetTimer?.cancel(); idleServer?.cancel(); request?.cancel(); request = nil
         client.stop(); refreshing = false; now = Date()
         writeDiagnostics()
     }
-    func resume() { suspended = false; activity.resume(); now = Date(); policy.resume(); refresh() }
+    func resume() { suspended = false; activity.resume(); speedMetadata.resume(); now = Date(); policy.resume(); refresh() }
     func timeChanged() { now = Date(); resetTimer?.cancel(); policy.resume(); refresh() }
     private func accountChanged() {
         // 新版服务初始化也通知 account/updated。读取已在前后核对账户；
@@ -226,7 +235,7 @@ import UserNotifications
     }
     func stop() {
         suspend(); clockTimer?.invalidate(); clockTimer = nil; demoTimer?.invalidate(); demoTimer = nil
-        activity.stop()
+        activity.stop(); speedMetadata.stop()
         writeDiagnostics()
     }
 

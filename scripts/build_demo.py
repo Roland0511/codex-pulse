@@ -8,7 +8,11 @@ import shutil
 import subprocess
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("scenario", choices=["normal", "long", "empty", "unknown", "loading", "error", "stale", "logout", "low", "consuming", "working"])
+parser.add_argument("scenario", choices=["normal", "long", "empty", "unknown", "loading", "error", "stale", "logout", "low", "consuming", "working", "working-low"])
+parser.add_argument("--speed", choices=["standard", "fast", "ultrafast"], default="standard")
+parser.add_argument("--dock", choices=["floating", "screen-left", "screen-right", "codex-left", "codex-right"])
+parser.add_argument("--reduce-motion", action="store_true", help="仅向合成预览注入减少动态效果，不更改系统设置")
+parser.add_argument("--appearance", choices=["light", "dark", "codex"], help="仅覆盖合成预览外观，不写入正式偏好")
 args = parser.parse_args()
 root = pathlib.Path(__file__).resolve().parents[1]
 source = root / "dist/Codex Pulse.app"
@@ -20,7 +24,12 @@ plist = target / "Contents/Info.plist"
 with plist.open("rb") as file:
     info = plistlib.load(file)
 info.update({"CFBundleIdentifier": "dev.roland.codex-pulse.demo", "CFBundleName": "Codex Pulse Demo",
-             "CFBundleDisplayName": "Codex Pulse Demo", "PulseDemoMode": True, "PulseDemoScenario": args.scenario})
+             "CFBundleDisplayName": "Codex Pulse Demo", "PulseDemoMode": True, "PulseDemoScenario": args.scenario,
+             "PulseDemoSpeed": args.speed, "PulseDemoReduceMotion": args.reduce_motion})
+if args.appearance:
+    info["PulseDemoAppearance"] = args.appearance
+if args.dock:
+    info["PulseDemoDock"] = args.dock
 with plist.open("wb") as file:
     plistlib.dump(info, file)
 subprocess.run(["codesign", "--force", "--sign", "-", str(target)], check=True)
