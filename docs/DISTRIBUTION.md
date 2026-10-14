@@ -1,6 +1,6 @@
 # macOS 手动分发
 
-2026-10-13 当前公开分发：[v0.2.2 / build 8](https://github.com/Roland0511/codex-pulse/releases/tag/v0.2.2)。展开卡片完成精简和点击区域修复；自动发布流程已执行真实发布，本机通过应用内更新安装。应用与 DMG 的 Apple 公证、签名、票据、Gatekeeper，以及公开附件和更新清单校验通过。历史交付记录保留如下。
+2026-10-15 当前公开分发：[v0.4.0 / build 13](https://github.com/Roland0511/codex-pulse/releases/tag/v0.4.0)。包含三档金色电弧、短填充段自适应、流光中线与 Codex 左边缘吸附修正。正式发布器完成公证、公开附件和 Latest 更新清单核验，本机已从公开 ZIP 更新。历史交付记录保留如下。
 
 历史交付状态：2026-10-10 v0.1.0（构建 2）正式手动分发包完成，包含完整应用图标和中文拖放安装界面，已在真实 Finder 中确认。应用及 DMG 均通过 Developer ID 签名、Apple 公证、票据及 Gatekeeper；最终 ZIP 解压、DMG 包内应用只读核验和 SHA-256 独立复核通过。支持 arm64 / x86_64，最低 macOS 14；Intel 和旧系统仅完成编译，未做实机运行验收。
 
@@ -211,3 +211,17 @@ python3 -m venv .build/packaging
 - `CodexPulse-0.3.3-universal-notarized.zip` SHA-256：`c7b0c277f71d56835508524cd156d38f13a13bf34154cd3b3de848cde0b4ed93`。
 - `appcast.xml` SHA-256：`ceb6d0df4945b9947e1f113f4bc04992204a91062e9c1a6a9280aca5cb8cef81`。
 - 用户对相同功能实现的本地签名候选确认“遮挡正常，高速跟随明显改善”；不扩大为多屏 / 全屏已验收。正式本机安装由公开 ZIP 完成，二进制 / helper 摘要一致，签名、票据、Gatekeeper、单实例与额度读取正常，偏好语义保持不变。测试候选已退出，旧版应用与偏好保留于本机。
+
+## v0.4.0 / build 13（2026-10-15）
+
+- [公开发行](https://github.com/Roland0511/codex-pulse/releases/tag/v0.4.0)，[PR #12](https://github.com/Roland0511/codex-pulse/pull/12) 已合并。干净构建源码 `110f2592d8a456c5256df5102019bb39a983fa29`，`sourceDirty=false`；[main CI 38582501044](https://github.com/Roland0511/codex-pulse/actions/runs/38582501044) 成功，远端签名 tag 指向该源码。后续提交仅补充交付文档。
+- 应用及 helper 为 arm64 + x86_64；应用和 DMG 均获得 Apple Accepted，公证日志摘要与相应上传字节记录匹配。Developer ID、安全时间戳、Hardened Runtime、嵌套 Sparkle 签名、附票和 Gatekeeper 通过；最终 ZIP 解压与只读 DMG 内应用独立核验通过。
+- `scripts/release.py` 完成草稿附件回读、公开发行、四个匿名下载以及 Latest 签名更新清单核验。正式附件为 DMG（4,081,518 bytes）、ZIP（3,403,153 bytes）、appcast.xml（1,453 bytes）、SHA256SUMS.txt（292 bytes）。
+- DMG SHA-256：`afd0c46a552d2717d9031ed8a3ec492e826fc502396aaf98b429fb49ad80d8cb`。
+- ZIP SHA-256：`bb7e7bb7874c8fb6d1c675f3b2fe58f686f0602c9ef3a7ceee536c3da40dd82c`。
+- appcast.xml SHA-256：`852078cbf4e16a6163d4dd811fe4ec29edf189f8135d12b8ebe0c5a28542eda7`。
+- 匿名公开仓库全历史扫描通过；唯一精确排除项为 `Resources/Updates.json` 中既有的公开 Sparkle 验签公钥。真实额度、偏好、截图、Apple 提交记录和日志只保留于本机忽略目录。
+- 本机由匿名下载的公开 ZIP 更新到 `/Applications/Codex Pulse.app`，版本 0.4.0 / build 13；主程序、包内 helper、Info.plist 与正式产物一致，签名 / 票据 / Gatekeeper 和正式路径单实例验证通过。旧正式版及偏好备份保留在 `local-data/release-0.4.0/`。
+- 原生设置显示版本 0.4.0、「已启用，连接就绪」，检查更新确认当前最新版；真实额度读取与工作状态正常。语言、外观、快捷键、位置、固定、提醒和自动更新偏好语义保持；hooks 与已安装的支持目录 helper 字节不变。仅 Sparkle 检查时间更新，JSON 编码键顺序变化不算偏好变更。
+- 锁屏时原生窗口回归失败、首次时间戳服务不可用及公证上传连接超时均保留为失败记录。解锁后测试通过，签名重试成功；已查询并保留中断上传的 Apple 记录，未把它当作“未提交”或正式公证成功。相同签名字节重试后使用可核验 Accepted 的提交继续发布。
+- 本次安装验证不扩展为新增多屏、人工拖动、Intel 实机或真实休眠恢复验收。用户已接受最终短条效果，动效抽查与技术验证分别见 [验证记录](VERIFICATION.md)。
