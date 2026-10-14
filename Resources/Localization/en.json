@@ -142,5 +142,11 @@
   "details.cached": "Cached at %@",
   "menu.codexLeft": "Codex · Left inner edge",
   "menu.codexRight": "Codex · Right inner edge",
-  "dock.chooseTarget": "Attach to…"
+  "dock.chooseTarget": "Attach to…",
+  "speed.standard": "Standard",
+  "speed.fast": "Fast",
+  "speed.ultrafast": "Ultrafast",
+  "speed.unknown": "Speed not confirmed",
+  "speed.default": "Default speed: %@",
+  "speed.working": "Working speed: %@"
 }

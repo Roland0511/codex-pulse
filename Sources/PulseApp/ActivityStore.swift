@@ -5,6 +5,7 @@ import PulseCore
 
 @MainActor final class ActivityStore: ObservableObject {
     @Published private(set) var isWorking = false
+    @Published private(set) var workingSessions: Set<String> = []
     @Published private(set) var hasReceivedEvent = false
     @Published private var messageKey: String?
     var message: String? { messageKey.map { tr($0) } }
@@ -70,6 +71,8 @@ import PulseCore
         ledger.prune(now: Date(), alive: alive)
         let next = !suspended && ledger.isWorking
         if isWorking != next { isWorking = next }
+        let sessions = suspended ? [] : ledger.workingSessions
+        if workingSessions != sessions { workingSessions = sessions }
         if ledger.hasLiveEntries, timer == nil {
             timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
                 Task { @MainActor in self?.publish() }
@@ -82,7 +85,7 @@ import PulseCore
     func stop() {
         source?.cancel(); source = nil
         if descriptor >= 0 { Darwin.close(descriptor); descriptor = -1; unlink(url.path) }
-        timer?.invalidate(); timer = nil; ledger.clear(); isWorking = false
+        timer?.invalidate(); timer = nil; ledger.clear(); isWorking = false; workingSessions = []
         buffered = []; verified = false; lastReceivedEvent = nil
     }
 }

@@ -194,9 +194,14 @@ import Testing
     func initializationTimeoutAndCallerCancellationReapProcess(cancel: Bool) async throws {
         let (client, directory, log) = try fake("stuck-start")
         defer { client.stop(); try? FileManager.default.removeItem(at: directory) }
-        client.initializationTimeoutSeconds = cancel ? 60 : 0.5
+        client.initializationTimeoutSeconds = cancel ? 60 : 2
         let task = Task { try await client.read() }
-        while !FileManager.default.fileExists(atPath: log.path) { try await Task.sleep(for: .milliseconds(10)) }
+        defer { task.cancel() }
+        let launchDeadline = ContinuousClock.now.advanced(by: .seconds(5))
+        while !FileManager.default.fileExists(atPath: log.path) && ContinuousClock.now < launchDeadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        try #require(FileManager.default.fileExists(atPath: log.path), "合成进程未就绪；等待必须有界")
         let pid = try #require(client.processID)
         if cancel { task.cancel() }
         do { _ = try await task.value; Issue.record("初始化应当取消或超时") }

@@ -90,6 +90,10 @@ public struct ActivityLedger: Sendable {
         turns.values.contains { $0.waiting.isEmpty && $0.waitingKinds.isEmpty } || children.contains { key, _ in turns[key] == nil }
     }
     public var hasLiveEntries: Bool { !turns.isEmpty || !children.isEmpty }
+    public var workingSessions: Set<String> {
+        Set(turns.filter { $0.value.waiting.isEmpty && $0.value.waitingKinds.isEmpty }.keys)
+            .union(children.filter { turns[$0.key] == nil }.keys)
+    }
     /// 显式本机验收只输出计数，不输出会话、调用或哈希标识。
     public var diagnosticCounts: [String: Int] {
         let waiting = turns.values.filter { !$0.waiting.isEmpty || !$0.waitingKinds.isEmpty }.count

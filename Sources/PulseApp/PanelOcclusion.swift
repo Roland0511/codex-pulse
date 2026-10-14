@@ -50,12 +50,18 @@ struct PanelVisibleRegion {
 
 /// Keep the mask outside NSHostingView: SwiftUI manages/replaces its backing layers.
 @MainActor final class PanelMaskContainer: NSView {
+    let hosting: NSView
     init(hosting: NSView) {
+        self.hosting = hosting
         super.init(frame: hosting.frame)
         wantsLayer = true
         hosting.frame = bounds
         hosting.autoresizingMask = [.width, .height]
         addSubview(hosting)
+    }
+    override func layout() {
+        super.layout()
+        if hosting.frame != bounds { hosting.frame = bounds }
     }
     required init?(coder: NSCoder) { nil }
 }

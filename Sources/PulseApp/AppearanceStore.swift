@@ -6,6 +6,7 @@ import SwiftUI
 @MainActor final class AppearanceStore: ObservableObject {
     static let shared = AppearanceStore()
     @Published private(set) var codex: CodexAppearance?
+    @Published private(set) var speed = CodexSpeedConfiguration.parse("")
     @Published private(set) var followsCodex = true
     private(set) var selection = "codex"
     private let url: URL
@@ -44,7 +45,12 @@ import SwiftUI
         guard force || date != stamp else { return }
         stamp = date
         guard let size = attributes?[.size] as? NSNumber, size.intValue <= 1_048_576,
-              let text = try? String(contentsOf: url, encoding: .utf8) else { cachedPalette = Palette(codex: nil); codex = nil; applyMode(); return }
+              let text = try? String(contentsOf: url, encoding: .utf8) else {
+            cachedPalette = Palette(codex: nil); codex = nil
+            speed = CodexSpeedConfiguration.parse(""); applyMode(); return
+        }
+        let nextSpeed = CodexSpeedConfiguration.parse(text)
+        if nextSpeed != speed { speed = nextSpeed }
         let next = CodexAppearance.parse(text)
         if next != codex { cachedPalette = Palette(codex: followsCodex ? next : nil); codex = next; applyMode() }
     }

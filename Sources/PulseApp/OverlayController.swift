@@ -93,7 +93,11 @@ enum DockDestination { case screen, codex }
         panel.becomesKeyOnlyIfNeeded = true; panel.isMovable = false
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenNone]
         panel.delegate = self
-        panel.contentView = PanelMaskContainer(hosting: NSHostingView(rootView: OverlayView(store: store, model: model)))
+        let hosting = NSHostingView(rootView: OverlayView(store: store, model: model))
+        // OverlayController owns the panel geometry. SwiftUI must not expand its
+        // hosting surface from an intrinsic/minimum size while the panel shrinks.
+        hosting.sizingOptions = []
+        panel.contentView = PanelMaskContainer(hosting: hosting)
         panel.acceptsMouseMovedEvents = true
         model.toggle = { [weak self] in self?.toggleDetails() }
         model.close = { [weak self] in self?.close() }

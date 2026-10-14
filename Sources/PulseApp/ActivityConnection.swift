@@ -31,8 +31,8 @@ import PulseCore
         guard let store, !store.demo, !checking else { return }
         if automatic && Date().timeIntervalSince(lastCheck) < 30 { return }
         do { installed = try installer.isInstalled() }
-        catch { statusKey = "activity.unsafe"; verified = false; store.activity.setVerified(false); return }
-        guard installed else { statusKey = "activity.disabled"; verified = false; store.activity.setVerified(false); return }
+        catch { statusKey = "activity.unsafe"; verified = false; store.activity.setVerified(false); store.speedMetadata.setEnabled(false); return }
+        guard installed else { statusKey = "activity.disabled"; verified = false; store.activity.setVerified(false); store.speedMetadata.setEnabled(false); return }
         checking = true; lastCheck = Date()
         check = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -48,9 +48,10 @@ import PulseCore
                 else if summary.enabled < summary.found { statusKey = "activity.partial" }
                 else { statusKey = "activity.trust" }
                 store.activity.setVerified(verified)
+                store.speedMetadata.setEnabled(verified)
             } catch {
                 guard !Task.isCancelled else { return }
-                verified = false; statusKey = "activity.check.failed"; store.activity.setVerified(false)
+                verified = false; statusKey = "activity.check.failed"; store.activity.setVerified(false); store.speedMetadata.setEnabled(false)
             }
         }
     }
@@ -65,7 +66,7 @@ import PulseCore
             guard alert.runModal() == .alertFirstButtonReturn else { return }
         }
         do {
-            store.activity.setVerified(false); verified = false
+            store.activity.setVerified(false); store.speedMetadata.setEnabled(false); verified = false
             try installer.change(install: enabled)
             installed = enabled; statusKey = enabled ? "activity.installed" : "activity.disabled"
             if enabled { refresh(); showTrustSteps() }

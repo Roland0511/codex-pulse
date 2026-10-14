@@ -104,3 +104,12 @@ python3 scripts/activity_hooks.py remove
 真实安装信任、桌面自然会话的开始 / 暂停 / 恢复 / 结束和异常退出仍须另记证据。合成演示 `working` 可检查持续流光，明确标注演示，不读取账户或真实信号。
 
 本机安装记录：2026-10-09 用户选择「允许安装，我会在 Codex 审阅信任」后执行安装。合并核对 12 个事件各有 1 条本项目 handler；原有 handlers 保留；helper 0700、hooks.json 0600。随后独立官方服务仅调用 initialize / initialized / hooks/list，确认 12 条均启用但未信任；未创建推理任务，未修改信任。脱敏元数据分别保存在 `private-evidence/activity-install.json` 和 `activity-trust.json`。
+
+
+## 速度动效追加（2026-10-14）
+
+工作状态与实际消耗证据的原门槛保持不变。三档视觉以及默认配置 / 可选官方速度通知的来源与范围见 DESIGN.md 的“三档速度动效”章节。hooks 定义、信任步骤和跨进程载荷没有扩展，不输出或持久化原始会话标识。`ActivityLedger.workingSessions` 只暴露既有哈希标识，用于与速度通知的哈希关联；等待许可、停止、失效进程不参与最高档汇总。
+
+显式合成预览：`python3 scripts/build_demo.py working --speed fast --dock codex-left`；速度可选 standard / fast / ultrafast，`working-low` 提供 7% 短填充。参数只影响演示包，不改变真实配置或工作信号。`--demo-reduce-motion` 仅用于合成验证静态退化，不改系统设置。
+
+程序化电弧由四层分形中点位移生成，连续路径插值及前沿 / 尾迹传播均交给 Core Animation；没有逐帧 SwiftUI 状态更新。合成验证可追加 `--appearance light|dark|codex` 和 `--reduce-motion`，只覆盖 Demo，正式偏好与系统动态效果设置不变。实际验证范围见 VERIFICATION.md。

@@ -29,6 +29,23 @@ values = {
 }
 source = "// 由 scripts/generate_tokens.py 生成；请修改 design/v0.1/tokens.json。\nimport Foundation\n\npublic enum DesignTokens {\n"
 source += "".join(f"    public static let {key}: Double = {value}\n" for key, value in values.items())
+lightning = t["consumption"]["lightning"]
+for key in ["effectHeight", "cycleMs", "transitionMs", "subdivisions", "displacementDecay", "temporalDrift", "branchLengthFraction", "compactMaxWidth", "microMaxWidth", "segmentLength", "compactLengthFraction", "compactAmplitude", "compactHaloWidth", "compactGlowRadius", "compactBurstScale", "compactStrokeBoost", "compactOpacityBoost"]:
+    suffix = key.replace("Ms", "Seconds")
+    value = lightning[key] / 1000 if key.endswith("Ms") else lightning[key]
+    source += f"    public static let lightning{suffix[0].upper() + suffix[1:]}: Double = {value}\n"
+for tier in ["fast", "ultrafast"]:
+    for key, value in lightning[tier].items():
+        suffix = key.replace("Ms", "Seconds")
+        name = tier + "Lightning" + suffix[0].upper() + suffix[1:]
+        if isinstance(value, list):
+            source += f"    public static let {name}: [Double] = {json.dumps([v / 1000 for v in value])}\n"
+        else:
+            value = value / 1000 if key.endswith("Ms") else value
+            source += f"    public static let {name}: Double = {value}\n"
+for name, variants in lightning["colors"].items():
+    for theme, value in variants.items():
+        source += f"    public static let lightning{name.capitalize()}{theme.capitalize()}: UInt32 = 0x{value[1:]}\n"
 for name, variants in t["colors"].items():
     for theme, value in variants.items():
         source += f"    public static let {name}{theme.capitalize()}: UInt32 = 0x{value[1:]}\n"

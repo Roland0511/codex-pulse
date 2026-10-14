@@ -36,13 +36,21 @@ import PulseCore
         let scenarioIndex = CommandLine.arguments.firstIndex(of: "--demo-scenario")
         let scenario = scenarioIndex.flatMap { index in index + 1 < CommandLine.arguments.count ? CommandLine.arguments[index + 1] : nil }
             ?? Bundle.main.object(forInfoDictionaryKey: "PulseDemoScenario") as? String ?? "normal"
-        store = QuotaStore(client: client, demo: demo, demoScenario: scenario)
+        let speedIndex = CommandLine.arguments.firstIndex(of: "--demo-speed")
+        let demoSpeed = speedIndex.flatMap { index in index + 1 < CommandLine.arguments.count ? CommandLine.arguments[index + 1] : nil }
+            ?? Bundle.main.object(forInfoDictionaryKey: "PulseDemoSpeed") as? String ?? "standard"
+        store = QuotaStore(client: client, demo: demo, demoScenario: scenario, demoSpeed: .parse(demoSpeed))
         store.restoreReminders(!demo && LocalDefaults.store.bool(forKey: "remindersEnabled"))
-        overlay = OverlayController(store: store)
+        let reducedDemo = demo && (CommandLine.arguments.contains("--demo-reduce-motion")
+            || Bundle.main.object(forInfoDictionaryKey: "PulseDemoReduceMotion") as? Bool == true)
+        overlay = OverlayController(store: store, model: reducedDemo ? OverlayModel(motionPreference: { true }) : OverlayModel())
         shortcut = GlobalShortcut(); shortcut.action = { [weak self] in self?.overlay.toggleVisible() }
         shortcut.escapeAction = { [weak self] in self?.overlay.close() }
         updater = AppUpdater(enabled: !demo)
         preferences = Preferences(hotkey: shortcut, store: store, overlay: overlay, updater: updater)
+        if demo, let appearance = Bundle.main.object(forInfoDictionaryKey: "PulseDemoAppearance") as? String {
+            AppearanceStore.shared.setSelection(appearance)
+        }
         overlay.model.$expanded.sink { [weak self] expanded in
             guard !demo else { return }
             if let message = self?.shortcut.watchEscape(expanded) { self?.preferences.message = message }
@@ -77,6 +85,16 @@ import PulseCore
             MainActor.assumeIsolated { self?.store.timeChanged() }
         })
         store.start(); overlay.show(); preferences.activityConnection.refresh()
+        if demo, let dock = Bundle.main.object(forInfoDictionaryKey: "PulseDemoDock") as? String {
+            switch dock {
+            case "codex-left": overlay.placeInCodex(.left)
+            case "codex-right": overlay.placeInCodex(.right)
+            case "screen-left": overlay.place(.left)
+            case "screen-right": overlay.place(.right)
+            case "floating": overlay.place(nil)
+            default: break
+            }
+        }
     }
     @objc private func lockChanged(_ notification: Notification) {
         if notification.name.rawValue == "com.apple.screenIsLocked" { store.suspend() }
