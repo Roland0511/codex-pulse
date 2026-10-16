@@ -8,7 +8,7 @@ Codex Pulse 把 **Codex 剩余额度和重置倒计时**，放进一枚随手可
 
 使用 SwiftUI 与 AppKit 原生构建，通过官方本地 Codex App Server 读取额度，不读取聊天内容。
 
-**[v0.4.0](https://github.com/Roland0511/codex-pulse/releases/tag/v0.4.0) 新增三档速度动效：** 标准流光、快速金色电弧、超快双电弧；短条自动简化为单束电流或脉冲，并修复左内侧吸附和光点偏移。保留窗口跟随与签名自动更新。0.1.3 及更早版本需手动升级一次。[更新指南](docs/UPDATES.md)。
+**[v0.5.0](https://github.com/Roland0511/codex-pulse/releases/tag/v0.5.0) 新增充值点数显示：** 订阅窗口耗尽且同桶仍有余额时，胶囊自动显示 `60k` 等紧凑数值，不追加单位；悬停或展开查看完整余额。保留速度动效、窗口跟随与签名自动更新。0.1.3 及更早版本需手动升级一次。[更新指南](docs/UPDATES.md)。
 
 ## 轻巧，但该知道的都在
 

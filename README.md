@@ -8,7 +8,7 @@ Codex Pulse keeps your **remaining Codex quota and reset countdown** within reac
 
 Built with SwiftUI and AppKit. Quota comes from the official local Codex App Server. The app does not read your conversations.
 
-**[v0.4.0](https://github.com/Roland0511/codex-pulse/releases/tag/v0.4.0) adds three speed effects:** the standard trace, fast gold arcs, and stronger ultrafast twin arcs. Short filled segments simplify to a single current or pulse. Left-edge docking and trace alignment are fixed. Adaptive window following and signed automatic updates remain available. Version 0.1.3 and earlier need one manual upgrade. [Update guide](docs/UPDATES.md).
+**[v0.5.0](https://github.com/Roland0511/codex-pulse/releases/tag/v0.5.0) adds credit-balance display:** when a subscription window is exhausted and the same quota bucket has credits, the capsule shows compact values such as `60k`, without a trailing unit. Hover or expand for the full balance. Speed effects, window following and signed automatic updates remain available. Version 0.1.3 and earlier need one manual upgrade. [Update guide](docs/UPDATES.md).
 
 ## A little presence, useful detail
 

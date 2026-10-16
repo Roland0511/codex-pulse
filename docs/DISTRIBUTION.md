@@ -1,6 +1,6 @@
 # macOS 手动分发
 
-2026-10-15 当前公开分发：[v0.4.0 / build 13](https://github.com/Roland0511/codex-pulse/releases/tag/v0.4.0)。包含三档金色电弧、短填充段自适应、流光中线与 Codex 左边缘吸附修正。正式发布器完成公证、公开附件和 Latest 更新清单核验，本机已从公开 ZIP 更新。历史交付记录保留如下。
+2026-10-16 当前公开分发：[v0.5.0 / build 14](https://github.com/Roland0511/codex-pulse/releases/tag/v0.5.0)。新增订阅耗尽后的充值点数显示，紧凑胶囊采用不带附加单位的 `60k` 等数值。应用与 DMG 均获 Apple Accepted，公开附件和 Latest 更新清单核验通过，本机已从公开 ZIP 更新。历史交付记录保留如下。
 
 历史交付状态：2026-10-10 v0.1.0（构建 2）正式手动分发包完成，包含完整应用图标和中文拖放安装界面，已在真实 Finder 中确认。应用及 DMG 均通过 Developer ID 签名、Apple 公证、票据及 Gatekeeper；最终 ZIP 解压、DMG 包内应用只读核验和 SHA-256 独立复核通过。支持 arm64 / x86_64，最低 macOS 14；Intel 和旧系统仅完成编译，未做实机运行验收。
 
@@ -26,6 +26,17 @@
 - 本机应用由公开 ZIP 更新为 0.1.3 / build 5，旧应用留在忽略目录 `local-data/issue-3/install-backup/`，可回退。安装后签名、票据、Gatekeeper 通过，应用二进制与发布文件一致，单实例运行。
 - 原生界面确认额度读取、手动刷新更新时间、工作状态文本及「已启用，连接就绪」。原有 hooks 和已安装 helper 字节不变，通知 / 开机启动保持关闭，工作特效保持开启，语言 / 外观 / 快捷键保持原选择。验收展开详情后曾改写垂直位置，随后只恢复原 `overlayPosition` 并重启；未重装 hooks 或改写信任。
 - 技术、安装与本次原生界面检查仅覆盖以上内容；未将它们当作多屏、拖动、动画全矩阵、Intel 或真实休眠恢复验收。
+
+## v0.5.0 / build 14 正式发布（2026-10-16）
+
+- [PR #13](https://github.com/Roland0511/codex-pulse/pull/13) 合并，干净构建源码 `e3d8d2aa6bf651df2d81d96d4478eaeaa0035b43`；对应 [main CI](https://github.com/Roland0511/codex-pulse/actions/runs/38904807851) 通过。签名 tag `v0.5.0` 指向该提交，后续提交仅更新交付文档。
+- 正式发布器重新运行回归、双架构构建、Developer ID 签名、公证、附票与 Gatekeeper 核验；应用和 DMG 分别获得 Accepted，最终 ZIP / DMG 内应用及 Sparkle 更新清单独立验证通过。产物在忽略目录 `dist/releases/v0.5.0-build14/artifacts/`，`sourceDirty=false`。
+- 发布附件只有 DMG、ZIP、`appcast.xml`、`SHA256SUMS.txt`；草稿回读、四个公开附件匿名下载及 Latest feed 均逐字节核对。公开源码克隆与历史 Gitleaks 扫描通过。
+- DMG SHA-256：`518cd9d3c62f959e63555699e7008025797226701a24c9a6ea33a956b600a05a`。
+- ZIP SHA-256：`cc98da80505cb2d06fc8bd90b52124a9188f09521146b7dc5910679dbfb89ae1`。
+- 本机从已核验的公开 ZIP 更新 `/Applications/Codex Pulse.app`，版本 0.5.0 / build 14；签名、票据、Gatekeeper、正式二进制及元数据摘要一致，保持单实例。旧应用与偏好保存在 `local-data/release-0.5.0/`，可恢复。
+- 原有语言、外观、位置、图钉、快捷键、提醒及自动更新选择保持，hooks 和已安装 helper 摘要未变。真实额度成功读取并切换点数显示，设置显示「已启用，连接就绪」，更新检查确认 0.5.0 已是最新版。
+- 本次为公开 ZIP 手动更新验收，不重复声明 Sparkle 自动安装、自然耗尽 / 恢复、多屏、休眠或 Intel 实机验证。
 
 ## 签名准备
 

@@ -1,5 +1,14 @@
 # v0.1 验证记录
 
+## 2026-10-16：v0.5.0 正式发布与本机安装
+
+- 构建源码 `e3d8d2aa6bf651df2d81d96d4478eaeaa0035b43`，PR #13 及 main CI 均通过；发布器在干净源码上重新执行回归、双架构构建和签名。公开源码克隆与 Gitleaks 扫描通过。
+- 应用和 DMG 均 Apple Accepted，票据、Gatekeeper、严格全架构签名、ZIP / DMG 内副本、Sparkle ZIP / feed 签名独立核验通过；草稿附件回读、四个公开匿名下载及 Latest feed 均与本地产物一致。摘要及来源见 [分发记录](DISTRIBUTION.md)。
+- 使用公开 ZIP 更新正式路径，安装版为 0.5.0 / build 14，主程序、包内 helper 与 Info.plist 摘要匹配，保持单实例。旧应用及偏好留在忽略目录 `local-data/release-0.5.0/`，可回退。
+- 真实原生界面确认订阅耗尽时显示紧凑点数、不追加单位；设置显示版本 0.5.0 和「已启用，连接就绪」，应用内检查显示当前已是最新版。本次没有重装 hooks、改写信任或调用账户修改接口。
+- 语言、外观、快捷键、位置、图钉、提醒及自动更新选择按语义核对保持；hooks 和已安装 helper 摘要未变。更新检查时间等运行时元数据允许正常变化；真实余额仅在内存 / 本机界面观察，未写入公开证据。
+- 手动安装及当前真实点数模式不替代自然耗尽 / 恢复、多屏、拖动、休眠、Intel 或 Sparkle 自动安装验收。
+
 ## 2026-10-16：订阅耗尽后显示充值点数
 
 - 协议及工具：本机 Swift 6.4 可用；从官方桌面 CLI `0.162.0-alpha.17.2` 生成实验协议 schema，确认每个 `RateLimitSnapshot.credits` 包含字符串 / null 的 `balance`、布尔 `hasCredits` 与 `unlimited`。本次未读取真实账户余额、认证文件或聊天记录，也未启动推理任务。
@@ -8,7 +17,7 @@
 - 自动验证：完整 Swift Core 86 项、App 53 项报告通过（共 7 项需显式开启的验证默认跳过）；Python 32 项（5 项需特定环境的用例跳过）无失败。新增合成 RPC 连续刷新覆盖订阅 → 点数 → 订阅及同周期后续消耗，核对消耗 / 恢复序号；工作特效控制覆盖可见 / 隐藏及减少动态效果。针对 38–156 pt 每 1 pt 宽度、12 种余额的实际字体测量未发现超宽，六万点在 38 pt 内显示为 `60k`。
 - 原生渲染：显式启用 `renderNativeCreditStates`，覆盖中英文、深浅色、左右 54 pt 标签、自由胶囊、详情及正常 / 极小 / 百万余额 / 工作 / 异常 / 过期，共 96 张合成截图；抽查数字、轮廓、余额详情及提示。证据仅在忽略目录 `private-evidence/credits-render/`，不含真实账户数据。原生渲染截图与字体测量不作为实际拖动证明。
 - 真实桌面交互：独立合成预览窗口中，实际点击胶囊 → 展开，核对完整数值 `60123.456`、保留的订阅窗口及工作文字，再实际点击「收起」回到不带单位的 `60.1k`。此项开启减少动态效果；没有将其记为普通动效、多屏、拖动或休眠恢复的实机验收。测试窗口不复用正式单实例入口，不安装 hooks，不替换正式应用。
-- 本地构建：`scripts/build_app.py --portable --output-dir dist/credits-validation` 生成本机 ad-hoc 验证包；参数、本地化生成一致性、UI 静态审计及差异空白检查通过。未发布、未公证、未替换 `/Applications` 中的正式安装版。
+- 本地构建：`scripts/build_app.py --portable --output-dir dist/credits-validation` 生成本机 ad-hoc 验证包；参数、本地化生成一致性、UI 静态审计及差异空白检查通过。该实现验收阶段未发布、公证或替换正式安装版；随后用户追加的正式发布与安装结果见上节。
 
 复核命令与日志：`swift test` → `private-evidence/credits-full-swift.log`；`PULSE_RENDER_CREDITS="$PWD/private-evidence/credits-render" swift test --skip-build --filter renderNativeCreditStates` → `private-evidence/credits-render.log`。实际桌面检查使用 `PULSE_CREDIT_DESKTOP=1` 的显式测试预览，窗口在 90 秒后清理；交互观察不以测试进程自动退出代替。
 

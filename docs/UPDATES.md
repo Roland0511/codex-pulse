@@ -1,6 +1,6 @@
 # 应用更新
 
-2026-10-15 当前正式版本为 [v0.4.0 / build 13](https://github.com/Roland0511/codex-pulse/releases/tag/v0.4.0)。已签名 Latest 清单与公开附件一致，本机由公开 ZIP 更新后，应用内检查确认 0.4.0 已是最新版；原有自动更新选择保持不变。本次没有重新将手动覆盖安装记作 Sparkle 自动安装验收，历史安装链路见下方记录。更新器自 v0.2.0 / build 6 引入，采用固定 Sparkle 2.10.0，保留标准安装器和错误恢复。
+2026-10-16 当前正式版本为 [v0.5.0 / build 14](https://github.com/Roland0511/codex-pulse/releases/tag/v0.5.0)。签名 Latest 清单与公开 ZIP 一致；本机由匿名下载并核验的公开 ZIP 更新，应用内检查确认 0.5.0 已是最新版，自动检查 / 自动安装选择保持。此次为手动覆盖安装验收，历史 Sparkle 自动安装链路见下方记录。更新器自 v0.2.0 / build 6 引入，采用固定 Sparkle 2.10.0。
 
 ## 使用方式
 
