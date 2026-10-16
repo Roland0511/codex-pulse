@@ -22,7 +22,7 @@ import SwiftUI
 @Suite("吸附内容与面板实际边缘", .serialized) @MainActor struct OverlayHostingTests {
     @Test func invisibleStatusIconNeverPushesRenderedContourPastDockAnchor() throws {
         _ = NSApplication.shared
-        for scenario in ["normal", "stale", "unknown", "low"] {
+        for scenario in ["normal", "stale", "unknown", "low", "credits", "credits-small", "credits-large"] {
             let store = QuotaStore(client: QuotaClient(), demo: true, demoScenario: scenario)
             defer { store.stop() }
             store.start()

@@ -148,5 +148,7 @@
   "speed.ultrafast": "超快",
   "speed.unknown": "速度尚未确认",
   "speed.default": "默认速度：%@",
-  "speed.working": "工作速度：%@"
+  "speed.working": "工作速度：%@",
+  "credits.remaining": "充值剩余",
+  "credits.trackHint": "细线表示有可用点数，不代表余额比例。"
 }

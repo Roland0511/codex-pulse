@@ -12,6 +12,8 @@ Install and sign in to the official Codex app or CLI first. Pulse discovers the 
 
 The smallest remaining percentage among available windows is shown. Click to inspect every returned window, its actual duration, reset time, available reset count when provided, and the latest successful update. Primary and secondary slots are not assumed to have fixed durations. Unknown values stay unknown.
 
+When any subscription window is exhausted and the same quota bucket reports a positive credit balance, the capsule displays credits instead. All languages use compact values such as `60k` or `1.2M`, without a trailing unit label; narrow labels reduce precision to fit. Hover or expand for the full balance. The full line in credit mode indicates available credits, not a percentage. Subscription recovery switches the capsule back to percentages after a successful refresh.
+
 A connection failure retains the last successful value with an error label. A snapshot older than three minutes is marked out of date. Account changes clear old data. Reset countdowns do not prove that quota has recovered; recovery requires a new service response.
 
 Visible quota refreshes every 60 seconds; explicitly hidden quota every five minutes. Opening details refreshes only if the last success is over 15 seconds old. The app pauses for screen lock or sleep and refreshes on resume. It uses bounded retries and a short-lived local App Server, not inference tasks.

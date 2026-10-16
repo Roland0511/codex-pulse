@@ -1,5 +1,17 @@
 # v0.1 验证记录
 
+## 2026-10-16：订阅耗尽后显示充值点数
+
+- 协议及工具：本机 Swift 6.4 可用；从官方桌面 CLI `0.162.0-alpha.17.2` 生成实验协议 schema，确认每个 `RateLimitSnapshot.credits` 包含字符串 / null 的 `balance`、布尔 `hasCredits` 与 `unlimited`。本次未读取真实账户余额、认证文件或聊天记录，也未启动推理任务。
+- 行为：任一窗口归零且同桶有已确认正余额时显示点数，订阅恢复或点数归零后切回；多桶隔离、空多桶权威、未知字段及旧单桶协议均有合成测试。余额使用十进制处理；模式切换不产生额外消耗短反馈或恢复闪光，服务限制及缓存状态保持原有提示。
+- 最终文案按用户反馈统一：中英文均显示 `60k`、`1.2M` 等，不追加「点」或 `credits`，不用「万 / 亿」。完整余额由「充值剩余」/「Credits remaining」标题说明。54 pt 标签两侧各留 8 pt，使用实际原生字体测量 38 pt 空间，按宽度减少精度及调整字号，必要时改科学计数法。
+- 自动验证：完整 Swift Core 86 项、App 53 项报告通过（共 7 项需显式开启的验证默认跳过）；Python 32 项（5 项需特定环境的用例跳过）无失败。新增合成 RPC 连续刷新覆盖订阅 → 点数 → 订阅及同周期后续消耗，核对消耗 / 恢复序号；工作特效控制覆盖可见 / 隐藏及减少动态效果。针对 38–156 pt 每 1 pt 宽度、12 种余额的实际字体测量未发现超宽，六万点在 38 pt 内显示为 `60k`。
+- 原生渲染：显式启用 `renderNativeCreditStates`，覆盖中英文、深浅色、左右 54 pt 标签、自由胶囊、详情及正常 / 极小 / 百万余额 / 工作 / 异常 / 过期，共 96 张合成截图；抽查数字、轮廓、余额详情及提示。证据仅在忽略目录 `private-evidence/credits-render/`，不含真实账户数据。原生渲染截图与字体测量不作为实际拖动证明。
+- 真实桌面交互：独立合成预览窗口中，实际点击胶囊 → 展开，核对完整数值 `60123.456`、保留的订阅窗口及工作文字，再实际点击「收起」回到不带单位的 `60.1k`。此项开启减少动态效果；没有将其记为普通动效、多屏、拖动或休眠恢复的实机验收。测试窗口不复用正式单实例入口，不安装 hooks，不替换正式应用。
+- 本地构建：`scripts/build_app.py --portable --output-dir dist/credits-validation` 生成本机 ad-hoc 验证包；参数、本地化生成一致性、UI 静态审计及差异空白检查通过。未发布、未公证、未替换 `/Applications` 中的正式安装版。
+
+复核命令与日志：`swift test` → `private-evidence/credits-full-swift.log`；`PULSE_RENDER_CREDITS="$PWD/private-evidence/credits-render" swift test --skip-build --filter renderNativeCreditStates` → `private-evidence/credits-render.log`。实际桌面检查使用 `PULSE_CREDIT_DESKTOP=1` 的显式测试预览，窗口在 90 秒后清理；交互观察不以测试进程自动退出代替。
+
 ## 2026-10-15：v0.4.0 正式发布与本机安装
 
 - 最终源码 `110f2592d8a456c5256df5102019bb39a983fa29` 的 main CI 通过。此前本地 Core 80 项、App 47 项报告通过；发布器在解锁后重跑 Swift / Python、参数及本地化检查通过。PR 首轮 CI 的 hosting 合成宿主越出较小屏幕，已改为按实际可见屏幕构造夹具；最终 PR 与 main CI 均通过，没有为此改变产品几何。

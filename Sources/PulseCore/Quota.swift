@@ -46,13 +46,30 @@ public struct QuotaSnapshot: Codable, Equatable, Sendable {
     public let fetchedAt: Date
     public let ordinaryUsageAllowed: Bool?
     public let hasReachedLimit: Bool
+    public let creditsByBucket: [String: QuotaCredits]?
 
     public init(accountKey: String, windows: [QuotaWindow], availableResetCount: Int? = nil,
-                fetchedAt: Date, ordinaryUsageAllowed: Bool? = nil, hasReachedLimit: Bool = false) {
+                fetchedAt: Date, ordinaryUsageAllowed: Bool? = nil, hasReachedLimit: Bool = false,
+                creditsByBucket: [String: QuotaCredits]? = nil) {
         self.accountKey = accountKey; self.windows = windows
         self.availableResetCount = availableResetCount.flatMap { $0 >= 0 ? $0 : nil }
         self.fetchedAt = fetchedAt; self.ordinaryUsageAllowed = ordinaryUsageAllowed
         self.hasReachedLimit = hasReachedLimit
+        self.creditsByBucket = creditsByBucket
+    }
+
+    public var displayMode: QuotaDisplayMode {
+        // 余额只能用于其所属且已耗尽的额度桶；并列沿用窗口的稳定排序。
+        let exhausted = windows.filter { $0.remainingPercent == 0 }.sorted {
+            if $0.resetsAt != $1.resetsAt { return ($0.resetsAt ?? .distantFuture) < ($1.resetsAt ?? .distantFuture) }
+            return $0.id < $1.id
+        }
+        for window in exhausted {
+            if let credits = creditsByBucket?[window.bucketID], let balance = credits.availableBalance {
+                return .credits(bucketID: window.bucketID, balance: balance)
+            }
+        }
+        return .subscription
     }
 
     public var selectedWindow: QuotaWindow? {
@@ -74,9 +91,14 @@ public struct QuotaSnapshot: Codable, Equatable, Sendable {
             buckets = [legacy["limitId"] as? String ?? "codex": legacy]
         } else { throw QuotaError.invalidResponse }
         var windows: [QuotaWindow] = []
+        var balances: [String: QuotaCredits] = [:]
         var reached = false
         for key in buckets.keys.sorted() {
             guard let bucket = buckets[key] as? [String: Any] else { continue }
+            if let credits = bucket["credits"] as? [String: Any] {
+                balances[key] = QuotaCredits(balance: credits["balance"] as? String,
+                    hasCredits: boolean(credits["hasCredits"]), unlimited: boolean(credits["unlimited"]))
+            }
             reached = reached || bucket["rateLimitReachedType"] is String || (bucket["spendControlReached"] as? Bool == true)
             for slot in ["primary", "secondary"] {
                 guard let window = bucket[slot] as? [String: Any] else { continue }
@@ -97,12 +119,17 @@ public struct QuotaSnapshot: Codable, Equatable, Sendable {
         }
         return Self(accountKey: accountKey, windows: windows, availableResetCount: count,
                     fetchedAt: now, ordinaryUsageAllowed: root["ordinaryUsageAllowed"] as? Bool,
-                    hasReachedLimit: reached)
+                    hasReachedLimit: reached, creditsByBucket: balances)
     }
 
     private static func number(_ value: Any?) -> Double? {
         guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(), number.doubleValue.isFinite else { return nil }
         return number.doubleValue
+    }
+
+    private static func boolean(_ value: Any?) -> Bool? {
+        guard let number = value as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() else { return nil }
+        return number.boolValue
     }
 }
 

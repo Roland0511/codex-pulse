@@ -8,7 +8,8 @@ import shutil
 import subprocess
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("scenario", choices=["normal", "long", "empty", "unknown", "loading", "error", "stale", "logout", "low", "consuming", "working", "working-low"])
+parser.add_argument("scenario", choices=["normal", "long", "empty", "unknown", "loading", "error", "stale", "logout", "low", "consuming", "working", "working-low",
+                                       "credits", "credits-small", "credits-large", "credits-working", "credits-error", "credits-stale"])
 parser.add_argument("--speed", choices=["standard", "fast", "ultrafast"], default="standard")
 parser.add_argument("--dock", choices=["floating", "screen-left", "screen-right", "codex-left", "codex-right"])
 parser.add_argument("--reduce-motion", action="store_true", help="仅向合成预览注入减少动态效果，不更改系统设置")
