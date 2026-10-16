@@ -148,5 +148,7 @@
   "speed.ultrafast": "Ultrafast",
   "speed.unknown": "Speed not confirmed",
   "speed.default": "Default speed: %@",
-  "speed.working": "Working speed: %@"
+  "speed.working": "Working speed: %@",
+  "credits.remaining": "Credits remaining",
+  "credits.trackHint": "Line indicates available credits, not a percentage."
 }

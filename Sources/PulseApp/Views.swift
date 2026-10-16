@@ -47,6 +47,21 @@ struct OverlayView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var refreshFocused: Bool
     private var selected: QuotaWindow? { store.state.snapshot?.selectedWindow }
+    private var creditBalance: Decimal? { store.state.snapshot?.displayMode.creditBalance }
+    private var displayedCredits: QuotaCredits? {
+        guard case let .credits(bucket, _) = store.state.snapshot?.displayMode else { return nil }
+        return store.state.snapshot?.creditsByBucket?[bucket]
+    }
+    private var fullCredits: String { displayedCredits?.fullBalance ?? "—" }
+    private var creditLayout: CreditLabelLayout? {
+        guard let creditBalance else { return nil }
+        let narrow = model.width < DesignTokens.percentageOnlyBelowWidth
+        let warning = store.status != .ready || restricted || store.demo
+        let available = model.width - (narrow ? 16 : 12 + (showsPin ? 36 : 12))
+            - (!narrow && warning ? 17 : 0) - (!narrow ? 7 : 0)
+            - (model.width >= DesignTokens.countdownRevealFrom ? 48 : 0)
+        return CreditLabelLayout.fit(creditBalance, width: max(38, available))
+    }
     private var speedTier: SpeedTier {
         store.demo ? store.demoSpeed : store.confirmedSpeedTier ?? appearance.speed.tier
     }
@@ -57,6 +72,7 @@ struct OverlayView: View {
     private var showsPin: Bool { model.side != nil && model.width >= DesignTokens.countdownRevealFrom }
     private var restricted: Bool { store.state.snapshot?.ordinaryUsageAllowed == false || store.state.snapshot?.hasReachedLimit == true }
     private var tint: Color {
+        if creditBalance != nil { return store.status == .ready && !restricted ? palette.signal : palette.muted }
         guard store.status == .ready, !restricted, let remaining = selected?.remainingPercent else { return palette.muted }
         return remaining <= 10 ? palette.danger : remaining <= 20 ? palette.warning : palette.signal
     }
@@ -65,7 +81,7 @@ struct OverlayView: View {
         let prefix = store.demo ? tr("status.demo.prefix") : ""
         switch store.status {
         case .loading: return prefix + tr("status.loading")
-        case .ready: return restricted ? tr("status.restricted") : tr("status.remaining")
+        case .ready: return restricted ? tr("status.restricted") : tr(creditBalance == nil ? "status.remaining" : "credits.remaining")
         case .unavailable: return prefix + tr("status.unavailable")
         case .unauthenticated: return prefix + tr("status.signedOut")
         case .failed: return prefix + tr("status.failed")
@@ -80,6 +96,10 @@ struct OverlayView: View {
         store.state.error?.message(using: text) ?? (store.status == .loading ? tr("status.reading") : tr("status.empty"))
     }
     private var accessibilitySummary: String {
+        if creditBalance != nil {
+            return "\(statusText) · \(tr("credits.remaining")) · \(fullCredits)" +
+                (model.working ? " · \(speedSummary)" : "")
+        }
         guard let selected else { return "\(statusText) · \(emptyWindowMessage)" }
         return tr("quota.summary", statusText, selected.localizedName(using: text), percentage,
                   QuotaText.countdown(selected.resetsAt, now: store.now, using: text)) +
@@ -118,8 +138,13 @@ struct OverlayView: View {
     private var header: some View {
         ZStack(alignment: .bottomLeading) {
             HStack(spacing: 7) {
-                Text(percentage).font(.system(size: 14, weight: .medium, design: .rounded)).monospacedDigit()
-                    .foregroundStyle(palette.ink).fixedSize()
+                if let layout = creditLayout {
+                    Text(layout.text).font(Font(layout.font)).foregroundStyle(palette.ink)
+                        .lineLimit(1).fixedSize().accessibilityIdentifier("quota.creditBalance")
+                } else {
+                    Text(percentage).font(.system(size: 14, weight: .medium, design: .rounded)).monospacedDigit()
+                        .foregroundStyle(palette.ink).fixedSize()
+                }
                 if model.width >= DesignTokens.percentageOnlyBelowWidth && (store.status != .ready || restricted || store.demo) {
                     Image(systemName: store.demo ? "eye" : "exclamationmark.circle").font(.system(size: 10))
                         .foregroundStyle(palette.warning)
@@ -142,7 +167,7 @@ struct OverlayView: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { model.toggle?() }
             .accessibilityHint(tr("quota.hint"))
-            QuotaProgressTrack(remaining: selected?.remainingPercent, color: tint, track: palette.track, surface: palette.surface,
+            QuotaProgressTrack(remaining: creditBalance == nil ? selected?.remainingPercent : 100, color: tint, track: palette.track, surface: palette.surface,
                 animating: model.consumptionAnimating, speed: speedTier, reduceMotion: reduceMotion)
                 .padding(.horizontal, 10).padding(.bottom, 5)
         }
@@ -169,6 +194,7 @@ struct OverlayView: View {
     private var compactDescription: String {
         guard store.status == .ready, !restricted, !store.demo else { return statusText }
         if model.consumptionDetected { return "· \(model.consumptionMessage)" }
+        if creditBalance != nil { return "· \(tr("credits.remaining"))" }
         guard let selected else { return statusText }
         let countdown = QuotaText.countdown(selected.resetsAt, now: store.now, using: text, compact: true)
         return "· \(countdown)"
@@ -239,6 +265,18 @@ struct OverlayView: View {
     private var detailContent: some View {
         VStack(alignment: .leading, spacing: DesignTokens.detailsSectionSpacing) {
             if let snapshot = store.state.snapshot, !snapshot.windows.isEmpty {
+                if creditBalance != nil {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(tr("credits.remaining")).font(.system(size: 12, weight: .medium))
+                        Text(fullCredits).font(.system(size: 22, weight: .medium, design: .rounded))
+                            .monospacedDigit().fixedSize(horizontal: false, vertical: true)
+                        Text(tr("credits.trackHint")).font(.system(size: 10)).foregroundStyle(palette.muted)
+                        QuotaProgressTrack(remaining: 100, color: tint, track: palette.track, surface: palette.surface,
+                            animating: model.consumptionAnimating, speed: speedTier, reduceMotion: reduceMotion)
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(statusText) · \(tr("credits.remaining")) · \(fullCredits)")
+                }
                 VStack(spacing: DesignTokens.detailsRowSpacing) {
                     ForEach(snapshot.windows) { window in quotaRow(window) }
                 }
@@ -283,7 +321,7 @@ struct OverlayView: View {
                     .foregroundStyle(palette.ink).fixedSize()
             }
             QuotaProgressTrack(remaining: window.remainingPercent, color: color, track: palette.track, surface: palette.surface,
-                animating: model.consumptionAnimating && window.id == selected?.id,
+                animating: creditBalance == nil && model.consumptionAnimating && window.id == selected?.id,
                 speed: speedTier, reduceMotion: reduceMotion)
         }
         .accessibilityElement(children: .ignore)

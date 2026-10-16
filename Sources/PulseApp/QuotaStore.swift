@@ -88,6 +88,7 @@ import UserNotifications
         clockTimer?.tolerance = 5
         if demo {
             let date = Date()
+            let creditDemo = demoScenario.hasPrefix("credits")
             var windows = [QuotaWindow(bucketID: "demo", slot: "primary", usedPercent: demoScenario == "low" || demoScenario == "working-low" ? 93 : 3, durationMinutes: 10080,
                                        resetsAt: date.addingTimeInterval(6 * 86400))]
             if demoScenario == "long" {
@@ -98,14 +99,21 @@ import UserNotifications
                 }
             }
             if demoScenario == "empty" { windows = [] }
+            if creditDemo {
+                windows = [QuotaWindow(bucketID: "demo", slot: "primary", usedPercent: 100,
+                    durationMinutes: 300, resetsAt: date.addingTimeInterval(7200))]
+            }
             if demoScenario == "unknown" {
                 windows = [QuotaWindow(bucketID: "demo", slot: "primary", usedPercent: nil, durationMinutes: nil, resetsAt: nil)]
             }
             if demoScenario != "loading" {
                 state.accept(QuotaSnapshot(accountKey: "demo", windows: windows, availableResetCount: demoScenario == "unknown" ? nil : 2,
-                                           fetchedAt: demoScenario == "stale" ? date.addingTimeInterval(-240) : date))
+                                           fetchedAt: demoScenario == "stale" || demoScenario == "credits-stale" ? date.addingTimeInterval(-240) : date,
+                                           creditsByBucket: creditDemo ? ["demo": QuotaCredits(
+                                            balance: demoScenario == "credits-small" ? "0.005" : demoScenario == "credits-large" ? "1250000" : "60123.456",
+                                            hasCredits: true, unlimited: false)] : nil))
             }
-            if demoScenario == "error" || demoScenario == "stale" { state.fail(.disconnected) }
+            if demoScenario == "error" || demoScenario == "stale" || demoScenario == "credits-error" || demoScenario == "credits-stale" { state.fail(.disconnected) }
             if demoScenario == "logout" { state.fail(.unauthenticated) }
             if demoScenario == "consuming" {
                 // 明确隔离的合成演示：每 6 秒播放一次，正常模式不会启用此计时器。
@@ -114,7 +122,7 @@ import UserNotifications
                     Task { @MainActor in self?.consumptionSerial += 1 }
                 }
             }
-            if demoScenario == "working" || demoScenario == "working-low" { working = true }
+            if demoScenario == "working" || demoScenario == "working-low" || demoScenario == "credits-working" { working = true }
         } else { activity.start(); refresh() }
     }
 
@@ -130,9 +138,10 @@ import UserNotifications
                 let next = try await self.client.read()
                 guard currentEpoch == self.epoch, !Task.isCancelled else { return }
                 let previous = self.state.snapshot
+                let displayKindChanged = (previous?.displayMode.creditBalance != nil) != (next.displayMode.creditBalance != nil)
                 self.state.accept(next); self.now = Date()
-                if ConsumptionPolicy.detected(previous: previous, next: next) { self.consumptionSerial += 1 }
-                if let previous, previous.accountKey == next.accountKey,
+                if !displayKindChanged, ConsumptionPolicy.detected(previous: previous, next: next) { self.consumptionSerial += 1 }
+                if !displayKindChanged, let previous, previous.accountKey == next.accountKey,
                    next.ordinaryUsageAllowed != false, !next.hasReachedLimit,
                    next.windows.contains(where: { window in
                        guard let old = previous.windows.first(where: { $0.id == window.id }),
