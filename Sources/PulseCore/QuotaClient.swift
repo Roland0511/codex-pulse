@@ -4,6 +4,7 @@ import Foundation
 /// 仅管理本应用启动的 stdio App Server；不接管桌面客户端或认证存储。
 @MainActor public final class QuotaClient {
     public var onAccountChanged: (() -> Void)?
+    public var onAuthenticationInvalidated: ((QuotaError) -> Void)?
     public var onQuotaUpdated: (() -> Void)?
     public var onIdentity: ((String?) -> Void)?
     public private(set) var requestCount = 0
@@ -239,7 +240,18 @@ import Foundation
                     item.continuation.resume(returning: encoded)
                 } else { item.continuation.resume(throwing: QuotaError.invalidResponse) }
             } else if let method = object["method"] as? String {
-                if method == "account/updated" { onAccountChanged?() }
+                if method == "account/updated" {
+                    let params = object["params"] as? [String: Any]
+                    if params?["authMode"] is NSNull {
+                        onAuthenticationInvalidated?(.unauthenticated)
+                    } else if let mode = params?["authMode"] as? String,
+                              mode != "chatgpt", mode != "chatgptAuthTokens" {
+                        onAuthenticationInvalidated?(.unsupportedAccount)
+                    } else {
+                        // 初始化和同账户认证刷新也发送此通知；它本身不是账户切换证据。
+                        onAccountChanged?()
+                    }
+                }
                 if method == "account/rateLimits/updated" { onQuotaUpdated?() }
                 // 拒绝任何服务主动发来的请求，不提供外部凭据或执行批准。
                 if let id = object["id"] {

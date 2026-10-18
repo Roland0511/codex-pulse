@@ -29,6 +29,7 @@ import UserNotifications
     private var scheduler: Task<Void, Never>?
     private var resetTimer: Task<Void, Never>?
     private var idleServer: Task<Void, Never>?
+    private let serverIdleSeconds: Double
     private var clockTimer: Timer?
     private var demoTimer: Timer?
     private var confirmedBoundaries: Set<String> = []
@@ -38,15 +39,18 @@ import UserNotifications
         didSet {
             guard hidden != oldValue else { return }
             policy.visibilityChanged(hidden: hidden, lastSuccess: state.snapshot?.fetchedAt)
+            updateServerLifetime()
             schedule()
         }
     }
     var status: DataStatus { state.status(now: now) }
     @Published private(set) var remindersEnabled = false
 
-    init(client: QuotaClient, demo: Bool = false, demoScenario: String = "normal", activity: ActivityStore? = nil, demoSpeed: SpeedTier = .standard) {
+    init(client: QuotaClient, demo: Bool = false, demoScenario: String = "normal", activity: ActivityStore? = nil, demoSpeed: SpeedTier = .standard,
+         serverIdleSeconds: Double = 10) {
         self.client = client; self.demo = demo; self.demoScenario = demoScenario
         self.demoSpeed = demoSpeed
+        self.serverIdleSeconds = max(0, serverIdleSeconds)
         self.activity = activity ?? ActivityStore()
         speedMetadata = SpeedMetadataStore()
         if let data = LocalDefaults.store.data(forKey: "alertLedger"),
@@ -66,14 +70,22 @@ import UserNotifications
         }
         client.onIdentity = { [weak self] key in
             guard let self else { return }
-            if key == nil || (self.observedIdentity != nil && self.observedIdentity != key) {
+            // 某些账户没有 email；最终响应仍必须提供可绑定的后台身份。
+            // 缺少预读身份不是换号证据，不能每次刷新都抹掉已绑定快照。
+            guard let key else { return }
+            if (self.observedIdentity != nil && self.observedIdentity != key)
+                || (self.observedIdentity == nil && self.state.snapshot != nil) {
                 self.state.identify(nil); self.confirmedBoundaries = []
+                self.resetTimer?.cancel()
             }
             self.observedIdentity = key
         }
         client.onAccountChanged = { [weak self] in
             // 延后至本行通知分发完毕，避免清空接收缓冲区时继续迭代。
             Task { @MainActor in self?.accountChanged() }
+        }
+        client.onAuthenticationInvalidated = { [weak self] error in
+            Task { @MainActor [weak self] in self?.authenticationInvalidated(error) }
         }
         client.onQuotaUpdated = { [weak self] in
             guard let self, self.now.timeIntervalSince(self.state.snapshot?.fetchedAt ?? .distantPast) > 15 else { return }
@@ -162,15 +174,7 @@ import UserNotifications
             guard currentEpoch == self.epoch else { return }
             self.refreshing = false; self.request = nil; self.schedule()
             self.writeDiagnostics()
-            // 轮询是数据保证；仅保留 10 秒通知观察期，避免让重型服务空转一分钟。
-            self.idleServer = Task { @MainActor [weak self] in
-                do { try await Task.sleep(for: .seconds(10)) } catch { return }
-                guard let self, self.request == nil else { return }
-                while self.client.isBusy {
-                    do { try await Task.sleep(for: .seconds(1)) } catch { return }
-                }
-                self.client.stop(); self.writeDiagnostics()
-            }
+            self.updateServerLifetime()
         }
         writeDiagnostics()
     }
@@ -178,17 +182,24 @@ import UserNotifications
     func inspectHookTrust(commands: Set<String>) async throws -> HookTrustSummary {
         guard !demo, !suspended else { throw QuotaError.serviceUnavailable }
         idleServer?.cancel()
-        defer {
-            idleServer = Task { @MainActor [weak self] in
-                do { try await Task.sleep(for: .seconds(10)) } catch { return }
-                guard let self else { return }
-                while self.client.isBusy || self.request != nil {
-                    do { try await Task.sleep(for: .seconds(1)) } catch { return }
-                }
-                self.client.stop(); self.writeDiagnostics()
-            }
-        }
+        defer { updateServerLifetime() }
         return try await client.readHookTrust(commands: commands, cwd: FileManager.default.homeDirectoryForCurrentUser)
+    }
+
+    private func updateServerLifetime() {
+        idleServer?.cancel(); idleServer = nil
+        // 可见且健康时跨轮询复用连接；隐藏、失败和纯信任检查才回收。
+        guard !suspended, hidden || state.error != nil || state.snapshot == nil else { return }
+        idleServer = Task { @MainActor [weak self] in
+            guard let delay = self?.serverIdleSeconds else { return }
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+            guard let self else { return }
+            while self.client.isBusy || self.request != nil {
+                do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
+            }
+            guard !Task.isCancelled, self.hidden || self.state.error != nil || self.state.snapshot == nil else { return }
+            self.client.stop(); self.writeDiagnostics()
+        }
     }
 
     func opened() {
@@ -234,13 +245,19 @@ import UserNotifications
     func resume() { suspended = false; activity.resume(); speedMetadata.resume(); now = Date(); policy.resume(); refresh() }
     func timeChanged() { now = Date(); resetTimer?.cancel(); policy.resume(); refresh() }
     private func accountChanged() {
-        // 新版服务初始化也通知 account/updated。读取已在前后核对账户；
-        // 先清掉旧显示，交由当前读取完成核对，避免每次握手都重启服务。
-        state.identify(nil); observedIdentity = nil; confirmedBoundaries = []
-        resetTimer?.cancel()
+        // 这也可能只是握手或同账户认证刷新；保留上次成功快照，
+        // 交给读取前后的身份核对确认变化，不能把通知直接解释成换号。
         if request != nil { return }
+        policy.resume(); refresh()
+    }
+    private func authenticationInvalidated(_ error: QuotaError) {
         epoch += 1; request?.cancel(); request = nil; refreshing = false
-        client.stop(); policy.resume(); refresh()
+        idleServer?.cancel(); resetTimer?.cancel(); client.stop()
+        observedIdentity = nil; confirmedBoundaries = []
+        now = Date()
+        state.fail(error)
+        policy.completed(success: false, now: Date(), hidden: hidden)
+        schedule()
     }
     func stop() {
         suspend(); clockTimer?.invalidate(); clockTimer = nil; demoTimer?.invalidate(); demoTimer = nil
