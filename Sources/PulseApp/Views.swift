@@ -44,7 +44,8 @@ struct OverlayView: View {
     @ObservedObject private var language = LanguageStore.shared
     private var text: PulseText { language.text }
     private var palette: Palette { appearance.palette }
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || model.reduceMotion }
     @FocusState private var refreshFocused: Bool
     private var selected: QuotaWindow? { store.state.snapshot?.selectedWindow }
     private var creditBalance: Decimal? { store.state.snapshot?.displayMode.creditBalance }
@@ -53,6 +54,11 @@ struct OverlayView: View {
         return store.state.snapshot?.creditsByBucket?[bucket]
     }
     private var fullCredits: String { displayedCredits?.fullBalance ?? "—" }
+    private var numberScope: String {
+        guard let snapshot = store.state.snapshot else { return "loading" }
+        if case let .credits(bucket, _) = snapshot.displayMode { return snapshot.accountKey + ":credits:" + bucket }
+        return snapshot.accountKey + ":window:" + (selected?.id ?? "unknown")
+    }
     private var creditLayout: CreditLabelLayout? {
         guard let creditBalance else { return nil }
         let narrow = model.width < DesignTokens.percentageOnlyBelowWidth
@@ -139,10 +145,14 @@ struct OverlayView: View {
         ZStack(alignment: .bottomLeading) {
             HStack(spacing: 7) {
                 if let layout = creditLayout {
-                    Text(layout.text).font(Font(layout.font)).foregroundStyle(palette.ink)
+                    QuotaNumberText(text: layout.text, value: creditBalance.map { NSDecimalNumber(decimal: $0).doubleValue },
+                                    font: Font(layout.font), animate: store.status == .ready && !reduceMotion)
+                        .id(numberScope).foregroundStyle(palette.ink)
                         .lineLimit(1).fixedSize().accessibilityIdentifier("quota.creditBalance")
                 } else {
-                    Text(percentage).font(.system(size: 14, weight: .medium, design: .rounded)).monospacedDigit()
+                    QuotaNumberText(text: percentage, value: selected?.remainingPercent,
+                                    font: .system(size: 14, weight: .medium, design: .rounded), animate: store.status == .ready && !reduceMotion)
+                        .id(numberScope).monospacedDigit()
                         .foregroundStyle(palette.ink).fixedSize()
                 }
                 if model.width >= DesignTokens.percentageOnlyBelowWidth && (store.status != .ready || restricted || store.demo) {
@@ -268,7 +278,9 @@ struct OverlayView: View {
                 if creditBalance != nil {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(tr("credits.remaining")).font(.system(size: 12, weight: .medium))
-                        Text(fullCredits).font(.system(size: 22, weight: .medium, design: .rounded))
+                        QuotaNumberText(text: fullCredits, value: creditBalance.map { NSDecimalNumber(decimal: $0).doubleValue },
+                                        font: .system(size: 22, weight: .medium, design: .rounded), animate: store.status == .ready && !reduceMotion)
+                            .id(numberScope)
                             .monospacedDigit().fixedSize(horizontal: false, vertical: true)
                         Text(tr("credits.trackHint")).font(.system(size: 10)).foregroundStyle(palette.muted)
                         QuotaProgressTrack(remaining: 100, color: tint, track: palette.track, surface: palette.surface,
@@ -316,8 +328,9 @@ struct OverlayView: View {
                         .lineLimit(1).help(exactReset)
                 }
                 Spacer(minLength: 0)
-                Text(QuotaText.percentage(window.remainingPercent, using: text))
-                    .font(.system(size: 28, weight: .medium, design: .rounded)).monospacedDigit()
+                QuotaNumberText(text: QuotaText.percentage(window.remainingPercent, using: text), value: window.remainingPercent,
+                                font: .system(size: 28, weight: .medium, design: .rounded), animate: store.status == .ready && !reduceMotion)
+                    .id((store.state.snapshot?.accountKey ?? "unknown") + ":" + window.id).monospacedDigit()
                     .foregroundStyle(palette.ink).fixedSize()
             }
             QuotaProgressTrack(remaining: window.remainingPercent, color: color, track: palette.track, surface: palette.surface,

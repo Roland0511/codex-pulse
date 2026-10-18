@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import Testing
 @testable import PulseApp
 @testable import PulseCore
@@ -21,16 +22,19 @@ import Testing
                 switching = '\(mode)' in ['switch','notify-switch']
                 boundary = 4 if '\(mode)'=='notify-switch' else 3
                 email='a@example.invalid' if not switching or reads<boundary else 'b@example.invalid'
-                result={'account':{'type':'chatgpt','email':email,'planType':'pro'}}
+                result={'account':{'type':'chatgpt','email':None if '\(mode)'=='backend-only' else email,'planType':'pro'}}
             elif m['method']=='account/rateLimits/read':
                 quotas+=1
-                if '\(mode)'=='notify-switch' and quotas==2:
+                if '\(mode)' in ['notify-switch','notify-same'] and quotas==2:
                     print(json.dumps({'method':'account/updated','params':{}}),flush=True)
+                if '\(mode)' in ['logout-notify','api-notify'] and quotas==2:
+                    print(json.dumps({'method':'account/updated','params':{'authMode':None if '\(mode)'=='logout-notify' else 'apikey'}}),flush=True)
                 time.sleep(0.1)
                 if '\(mode)'=='failure' and quotas>1:
                     print(json.dumps({'id':m['id'],'error':{'code':503,'message':'unavailable'}}),flush=True);continue
                 used=30+quotas if '\(mode)'=='consume' else 30
                 result={'rateLimits':{'primary':{'usedPercent':used,'windowDurationMins':120,'resetsAt':1894057200}}}
+                if '\(mode)'=='backend-only': result['accountId']='synthetic-backend'
             print(json.dumps({'id':m['id'],'result':result}),flush=True)
             if m['method']=='initialize' and '\(mode)'=='startup-notify':
                 print(json.dumps({'method':'account/updated','params':{}}),flush=True)
@@ -39,7 +43,7 @@ import Testing
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
         let client = QuotaClient(executable: executable, timeoutSeconds: 5)
         client.stateRoot = directory.appendingPathComponent("state")
-        return (QuotaStore(client: client), directory)
+        return (QuotaStore(client: client, serverIdleSeconds: 0.15), directory)
     }
     private func settled(_ store: QuotaStore) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(6))
@@ -66,11 +70,13 @@ import Testing
         let pid = try #require(store.client.processID)
         let root = try #require(store.client.stateRoot)
         let before = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
+        store.hidden = true
         let deadline = ContinuousClock.now.advanced(by: .seconds(13))
         while store.client.processID != nil && ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(100))
         }
         #expect(store.client.processID == nil)
+        store.hidden = false
         store.refresh(manual: true); try await settled(store)
         #expect(store.status == .ready && store.client.processID != pid)
         #expect(try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) == before)
@@ -116,20 +122,75 @@ import Testing
         #expect(store.status == .ready && store.state.snapshot?.selectedWindow?.remainingPercent == 70)
         #expect(store.client.quotaReadCount == 1 && store.client.requestCount == 4)
     }
-    @Test func accountNotificationDuringReadClearsOldSnapshotAndRejectsMixedIdentity() async throws {
+    @Test func accountNotificationRevalidatesAndRejectsMixedIdentity() async throws {
         let (store, directory) = try fake("notify-switch")
         defer { store.stop(); try? FileManager.default.removeItem(at: directory) }
         store.refresh(); try await settled(store)
         let oldKey = store.state.snapshot!.accountKey
         store.refresh()
         let deadline = ContinuousClock.now.advanced(by: .seconds(3))
-        while store.state.snapshot != nil && ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(5)) }
-        #expect(store.state.snapshot == nil && store.refreshing)
+        while store.client.quotaReadCount < 2 && ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(5)) }
+        #expect(store.state.snapshot?.accountKey == oldKey && store.refreshing)
         try await settled(store)
         #expect(store.state.snapshot == nil && store.state.error == .accountChanged)
         store.refresh(); try await settled(store)
         #expect(store.status == .ready && store.state.snapshot?.accountKey != oldKey)
         #expect(store.client.quotaReadCount == 3)
+    }
+
+    @Test(arguments: ["startup-notify", "notify-same", "backend-only"])
+    func sameAccountRefreshNeverEmptiesCachedContent(_ mode: String) async throws {
+        let (store, directory) = try fake(mode)
+        defer { store.stop(); try? FileManager.default.removeItem(at: directory) }
+        store.refresh(); try await settled(store)
+        let prior = try #require(store.state.snapshot)
+        if mode == "startup-notify" { store.client.stop() }
+        var emptied = false
+        let observation = store.$state.dropFirst().sink { state in
+            if state.snapshot == nil { emptied = true }
+        }
+        defer { observation.cancel() }
+        store.refresh(manual: true)
+        #expect(store.refreshing && store.state.snapshot == prior)
+        try await settled(store)
+        #expect(!emptied)
+        #expect(store.state.snapshot?.accountKey == prior.accountKey && store.status == .ready)
+        #expect(store.state.snapshot!.fetchedAt >= prior.fetchedAt)
+    }
+
+    @Test func visibleConnectionIsReusedAndHidingReleasesIt() async throws {
+        let (store, directory) = try fake("startup-notify")
+        defer { store.stop(); try? FileManager.default.removeItem(at: directory) }
+        store.refresh(); try await settled(store)
+        let pid = try #require(store.client.processID)
+        try await Task.sleep(for: .milliseconds(350))
+        #expect(store.client.processID == pid)
+        store.refresh(); try await settled(store)
+        #expect(store.client.processID == pid && store.client.requestCount == 7)
+        store.hidden = true
+        try await Task.sleep(for: .milliseconds(50))
+        store.hidden = false
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(store.client.processID == pid)
+        store.hidden = true
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while store.client.processID != nil && ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(store.client.processID == nil)
+        store.hidden = false; store.refresh(); try await settled(store)
+        #expect(store.client.processID != nil && store.client.processID != pid)
+        #expect(store.state.snapshot != nil)
+    }
+
+    @Test(arguments: ["logout-notify", "api-notify"])
+    func invalidAuthenticationNotificationClearsImmediately(_ mode: String) async throws {
+        let (store, directory) = try fake(mode)
+        defer { store.stop(); try? FileManager.default.removeItem(at: directory) }
+        store.refresh(); try await settled(store)
+        #expect(store.state.snapshot != nil)
+        store.refresh(); try await settled(store)
+        #expect(store.state.snapshot == nil)
+        #expect(store.state.error == (mode == "logout-notify" ? .unauthenticated : .unsupportedAccount))
+        #expect(store.client.processID == nil)
     }
     @Test(arguments: ["loading", "empty", "unknown", "long", "stale", "error", "logout", "low", "consuming", "working"])
     func demoNeverReadsService(_ scenario: String) {
