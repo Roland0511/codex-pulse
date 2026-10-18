@@ -1,6 +1,6 @@
 # macOS 手动分发
 
-2026-10-16 当前公开分发：[v0.5.0 / build 14](https://github.com/Roland0511/codex-pulse/releases/tag/v0.5.0)。新增订阅耗尽后的充值点数显示，紧凑胶囊采用不带附加单位的 `60k` 等数值。应用与 DMG 均获 Apple Accepted，公开附件和 Latest 更新清单核验通过，本机已从公开 ZIP 更新。历史交付记录保留如下。
+2026-10-18 当前公开分发：[v0.5.1 / build 15](https://github.com/Roland0511/codex-pulse/releases/tag/v0.5.1)。修复刷新清屏，保留已确认内容并平滑更新数字，显示期间复用额度连接。应用与 DMG 均获 Apple Accepted，公开附件和 Latest 更新清单核验通过，本机已从公开 ZIP 更新。历史交付记录保留如下。
 
 历史交付状态：2026-10-10 v0.1.0（构建 2）正式手动分发包完成，包含完整应用图标和中文拖放安装界面，已在真实 Finder 中确认。应用及 DMG 均通过 Developer ID 签名、Apple 公证、票据及 Gatekeeper；最终 ZIP 解压、DMG 包内应用只读核验和 SHA-256 独立复核通过。支持 arm64 / x86_64，最低 macOS 14；Intel 和旧系统仅完成编译，未做实机运行验收。
 
@@ -26,6 +26,17 @@
 - 本机应用由公开 ZIP 更新为 0.1.3 / build 5，旧应用留在忽略目录 `local-data/issue-3/install-backup/`，可回退。安装后签名、票据、Gatekeeper 通过，应用二进制与发布文件一致，单实例运行。
 - 原生界面确认额度读取、手动刷新更新时间、工作状态文本及「已启用，连接就绪」。原有 hooks 和已安装 helper 字节不变，通知 / 开机启动保持关闭，工作特效保持开启，语言 / 外观 / 快捷键保持原选择。验收展开详情后曾改写垂直位置，随后只恢复原 `overlayPosition` 并重启；未重装 hooks 或改写信任。
 - 技术、安装与本次原生界面检查仅覆盖以上内容；未将它们当作多屏、拖动、动画全矩阵、Intel 或真实休眠恢复验收。
+
+## v0.5.1 / build 15 正式发布（2026-10-18）
+
+- [PR #14](https://github.com/Roland0511/codex-pulse/pull/14) 合并，干净构建源码 `82d83b1273419f6130b70895591d3d4b1893c92b`；对应 [main CI](https://github.com/Roland0511/codex-pulse/actions/runs/39130399509) 通过。签名 tag `v0.5.1` 指向该源码，后续提交只更新交付文档。
+- 正式发布器重跑回归、通用架构构建及 Developer ID 签名；应用和 DMG 均获 Apple Accepted，附票、Gatekeeper、ZIP / DMG 内副本、Sparkle ZIP 与清单签名独立验证通过。产物在忽略目录 `dist/releases/v0.5.1-build15/artifacts/`，`sourceDirty=false`。
+- 四个附件的草稿回读、公开匿名下载和 Latest 更新清单均与本地产物一致；发布状态记录 `complete=true`。新增提交的 Gitleaks 扫描未发现泄露。
+- DMG SHA-256：`c33f737c8b5a9bf1c0e0d4f7e569e78ee50d5696a431c44b7c724381b08bc059`。
+- ZIP SHA-256：`608397f3f821015d0f31cb2e49ac65b219ddefb0696bc7778962ea02ef14b9f8`。
+- 正常退出旧版后，由已核验的公开 ZIP 更新 `/Applications/Codex Pulse.app` 为 0.5.1 / build 15；正式安装版签名、票据、Gatekeeper 及主程序 / 包内 helper / Info.plist 摘要匹配。旧应用和偏好留在 `local-data/release-0.5.1/`，可恢复；保持单实例。
+- 偏好逐项语义比较只有 `SULastCheckTime` 正常变化，hooks 和已安装 helper 摘要未变。原生设置确认版本、工作特效连接就绪及当前已是最新版；真实额度可读，实际手动刷新后服务 PID 保持一致。胶囊已恢复紧凑状态。
+- 本次为公开 ZIP 手动更新，不重复声明 Sparkle 自动安装、自然额度变化、整个网络等待区间的连续桌面录像、多屏、休眠或 Intel 实机验收。刷新等待期间的缓存保持和数字过渡证据分别见 [验证记录](VERIFICATION.md)。
 
 ## v0.5.0 / build 14 正式发布（2026-10-16）
 
