@@ -15,6 +15,8 @@ values = {
     "detailsHeaderHeight": t["details"]["headerHeight"], "detailsRowSpacing": t["details"]["rowSpacing"],
     "joinRadius": t["joinRadius"], "outerRadius": t["outerRadius"],
     "outlineWidth": t["outlineWidth"], "dragThreshold": t["dragThreshold"],
+    "compactStatusSize": t["compactStatus"]["size"], "compactStatusTrailing": t["compactStatus"]["trailing"],
+    "compactStatusBottom": t["compactStatus"]["bottom"], "compactStatusGap": t["compactStatus"]["gap"],
     "attachmentTravel": t["attachmentTravel"], "expandSeconds": t["expandDurationMs"] / 1000,
     "hoverLeaveSeconds": t["hoverLeaveDelayMs"] / 1000, "barSeconds": t["quotaBarDurationMs"] / 1000,
     "recoverySeconds": t["recovery"]["durationMs"] / 1000,

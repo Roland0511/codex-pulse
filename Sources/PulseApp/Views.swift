@@ -77,6 +77,9 @@ struct OverlayView: View {
     }
     private var showsPin: Bool { model.side != nil && model.width >= DesignTokens.countdownRevealFrom }
     private var restricted: Bool { store.state.snapshot?.ordinaryUsageAllowed == false || store.state.snapshot?.hasReachedLimit == true }
+    private var hasDataWarning: Bool { (store.status != .ready && store.status != .loading) || restricted }
+    private var compactWarning: Bool { model.width < DesignTokens.percentageOnlyBelowWidth && hasDataWarning }
+    private var numberColor: Color { hasDataWarning ? palette.muted : palette.ink }
     private var tint: Color {
         if creditBalance != nil { return store.status == .ready && !restricted ? palette.signal : palette.muted }
         guard store.status == .ready, !restricted, let remaining = selected?.remainingPercent else { return palette.muted }
@@ -147,13 +150,13 @@ struct OverlayView: View {
                 if let layout = creditLayout {
                     QuotaNumberText(text: layout.text, value: creditBalance.map { NSDecimalNumber(decimal: $0).doubleValue },
                                     font: Font(layout.font), animate: store.status == .ready && !reduceMotion)
-                        .id(numberScope).foregroundStyle(palette.ink)
+                        .id(numberScope).foregroundStyle(numberColor)
                         .lineLimit(1).fixedSize().accessibilityIdentifier("quota.creditBalance")
                 } else {
                     QuotaNumberText(text: percentage, value: selected?.remainingPercent,
                                     font: .system(size: 14, weight: .medium, design: .rounded), animate: store.status == .ready && !reduceMotion)
                         .id(numberScope).monospacedDigit()
-                        .foregroundStyle(palette.ink).fixedSize()
+                        .foregroundStyle(numberColor).fixedSize()
                 }
                 if model.width >= DesignTokens.percentageOnlyBelowWidth && (store.status != .ready || restricted || store.demo) {
                     Image(systemName: store.demo ? "eye" : "exclamationmark.circle").font(.system(size: 10))
@@ -179,7 +182,20 @@ struct OverlayView: View {
             .accessibilityHint(tr("quota.hint"))
             QuotaProgressTrack(remaining: creditBalance == nil ? selected?.remainingPercent : 100, color: tint, track: palette.track, surface: palette.surface,
                 animating: model.consumptionAnimating, speed: speedTier, reduceMotion: reduceMotion)
-                .padding(.horizontal, 10).padding(.bottom, 5)
+                .padding(.leading, 10)
+                .padding(.trailing, compactWarning ? DesignTokens.compactStatusSize + DesignTokens.compactStatusTrailing + DesignTokens.compactStatusGap : 10)
+                .padding(.bottom, 5)
+            if compactWarning {
+                // 独立覆盖在细线右端，不占数字宽度、不撑大吸附轮廓。
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.system(size: DesignTokens.compactStatusSize, weight: .semibold))
+                    .foregroundStyle(palette.warning)
+                    .frame(width: DesignTokens.compactStatusSize, height: DesignTokens.compactStatusSize)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .padding(.trailing, DesignTokens.compactStatusTrailing)
+                    .padding(.bottom, DesignTokens.compactStatusBottom)
+                    .allowsHitTesting(false).accessibilityHidden(true)
+            }
         }
         .frame(height: DesignTokens.height)
         .contentShape(Rectangle())
