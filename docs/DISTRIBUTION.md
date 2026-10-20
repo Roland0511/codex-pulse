@@ -29,6 +29,8 @@
 
 ## v0.5.2 / build 16 正式发布（2026-10-20）
 
+2026-10-21 追加实机验收：已安装正式包在真实锁屏 4 分 19 秒、缓存过期后，用户手动解锁即可自动补刷，随后约 61 秒的后台轮询通过；验证期间未点开胶囊或手动刷新，临时诊断已关闭。详见 VERIFICATION.md；整机睡眠 / 休眠仍未验证。
+
 - [PR #15](https://github.com/Roland0511/codex-pulse/pull/15) 合并，干净构建源码 `360b02605c82bbd9cf7b1a298f9c9acaed2a187d`；对应 [main CI](https://github.com/Roland0511/codex-pulse/actions/runs/39452049479) 通过。签名 tag `v0.5.2` 指向该源码，后续提交只更新交付文档。
 - `scripts/release.py` 完成回归、双架构构建、Developer ID 签名、应用和 DMG 公证（均为 Apple Accepted）、票据、Gatekeeper、ZIP / DMG 内副本及 Sparkle ZIP / 清单验签。产物在忽略目录 `dist/releases/v0.5.2-build16/artifacts/`，`sourceDirty=false`。
 - 草稿附件、四个公开匿名下载和 Latest feed 逐字节核验通过；`publish-state.json` 为 `complete=true`。增量源码敏感信息扫描未发现泄露。
