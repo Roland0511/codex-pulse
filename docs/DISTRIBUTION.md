@@ -1,6 +1,6 @@
 # macOS 手动分发
 
-2026-10-18 当前公开分发：[v0.5.1 / build 15](https://github.com/Roland0511/codex-pulse/releases/tag/v0.5.1)。修复刷新清屏，保留已确认内容并平滑更新数字，显示期间复用额度连接。应用与 DMG 均获 Apple Accepted，公开附件和 Latest 更新清单核验通过，本机已从公开 ZIP 更新。历史交付记录保留如下。
+2026-10-20 当前公开分发：[v0.5.2 / build 16](https://github.com/Roland0511/codex-pulse/releases/tag/v0.5.2)。改善额度过期后的自动恢复，并在紧凑标签显示异常符号。应用与 DMG 均获 Apple Accepted，公开附件和 Latest 更新清单核验通过，本机已从公开 ZIP 更新。历史交付记录保留如下。
 
 历史交付状态：2026-10-10 v0.1.0（构建 2）正式手动分发包完成，包含完整应用图标和中文拖放安装界面，已在真实 Finder 中确认。应用及 DMG 均通过 Developer ID 签名、Apple 公证、票据及 Gatekeeper；最终 ZIP 解压、DMG 包内应用只读核验和 SHA-256 独立复核通过。支持 arm64 / x86_64，最低 macOS 14；Intel 和旧系统仅完成编译，未做实机运行验收。
 
@@ -26,6 +26,17 @@
 - 本机应用由公开 ZIP 更新为 0.1.3 / build 5，旧应用留在忽略目录 `local-data/issue-3/install-backup/`，可回退。安装后签名、票据、Gatekeeper 通过，应用二进制与发布文件一致，单实例运行。
 - 原生界面确认额度读取、手动刷新更新时间、工作状态文本及「已启用，连接就绪」。原有 hooks 和已安装 helper 字节不变，通知 / 开机启动保持关闭，工作特效保持开启，语言 / 外观 / 快捷键保持原选择。验收展开详情后曾改写垂直位置，随后只恢复原 `overlayPosition` 并重启；未重装 hooks 或改写信任。
 - 技术、安装与本次原生界面检查仅覆盖以上内容；未将它们当作多屏、拖动、动画全矩阵、Intel 或真实休眠恢复验收。
+
+## v0.5.2 / build 16 正式发布（2026-10-20）
+
+- [PR #15](https://github.com/Roland0511/codex-pulse/pull/15) 合并，干净构建源码 `360b02605c82bbd9cf7b1a298f9c9acaed2a187d`；对应 [main CI](https://github.com/Roland0511/codex-pulse/actions/runs/39452049479) 通过。签名 tag `v0.5.2` 指向该源码，后续提交只更新交付文档。
+- `scripts/release.py` 完成回归、双架构构建、Developer ID 签名、应用和 DMG 公证（均为 Apple Accepted）、票据、Gatekeeper、ZIP / DMG 内副本及 Sparkle ZIP / 清单验签。产物在忽略目录 `dist/releases/v0.5.2-build16/artifacts/`，`sourceDirty=false`。
+- 草稿附件、四个公开匿名下载和 Latest feed 逐字节核验通过；`publish-state.json` 为 `complete=true`。增量源码敏感信息扫描未发现泄露。
+- DMG SHA-256：`dbec18815e8fe37df712a00d0a10e2bdc8411fce89315e034f1abeafdfac64d2`。
+- ZIP SHA-256：`0a77d4a392175f040864848f697fb00bc9596b14d6c88931e2cbc53a117c1f46`。
+- 本机重新匿名下载公开 ZIP 并检查摘要及解压应用，正常退出旧版后替换 `/Applications/Codex Pulse.app` 为 0.5.2 / build 16。签名、公证票据、Gatekeeper 及主程序 / 包内 helper / Info.plist 与公开包一致；当前单实例运行。旧应用和偏好保留在 `local-data/release-0.5.2/`，可恢复。
+- 偏好语义比较仅 `SULastCheckTime` 正常变化，语言、外观、位置、图钉、提醒、快捷键及自动更新开关保持；hooks 与已安装 helper 摘要未变。原生界面确认版本、真实额度、工作特效连接就绪及当前已是最新版，结束后恢复紧凑胶囊。
+- 合成回归验证自动补刷；实机被动观察时详情自动收起，未取得连续成功时间，故不宣称自动轮询或锁屏 / 休眠恢复的连续桌面证据已通过。本轮公开 ZIP 手动更新也不替代 Sparkle 自动安装、多屏、拖动或 Intel 实机验收。
 
 ## v0.5.1 / build 15 正式发布（2026-10-18）
 
