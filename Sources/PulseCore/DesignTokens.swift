@@ -16,6 +16,10 @@ public enum DesignTokens {
     public static let outerRadius: Double = 10
     public static let outlineWidth: Double = 0.65
     public static let dragThreshold: Double = 5
+    public static let compactStatusSize: Double = 9
+    public static let compactStatusTrailing: Double = 7
+    public static let compactStatusBottom: Double = 3
+    public static let compactStatusGap: Double = 6
     public static let attachmentTravel: Double = 32
     public static let expandSeconds: Double = 0.2
     public static let hoverLeaveSeconds: Double = 0.4

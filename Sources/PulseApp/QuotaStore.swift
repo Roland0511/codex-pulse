@@ -40,7 +40,10 @@ import UserNotifications
             guard hidden != oldValue else { return }
             policy.visibilityChanged(hidden: hidden, lastSuccess: state.snapshot?.fetchedAt)
             updateServerLifetime()
-            schedule()
+            // 从隐藏或不可见宿主返回时主动复核，不沿用隐藏期间的失败退避。
+            if !hidden, state.error != nil || Date().timeIntervalSince(state.snapshot?.fetchedAt ?? .distantPast) >= 60 {
+                refresh()
+            } else { schedule() }
         }
     }
     var status: DataStatus { state.status(now: now) }
@@ -94,10 +97,11 @@ import UserNotifications
     }
 
     func start() {
-        clockTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.now = Date() }
+        clockTimer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.clockTick() }
         }
         clockTimer?.tolerance = 5
+        if let clockTimer { RunLoop.main.add(clockTimer, forMode: .common) }
         if demo {
             let date = Date()
             let creditDemo = demoScenario.hasPrefix("credits")
@@ -207,13 +211,22 @@ import UserNotifications
         if now.timeIntervalSince(state.snapshot?.fetchedAt ?? .distantPast) > 15 { refresh() }
     }
 
+    // 复用分钟时钟兜底到期调度；不会绕过退避、休眠或单请求约束。
+    func clockTick(at date: Date = Date()) {
+        now = date
+        guard !demo, policy.shouldRefresh(now: date, suspended: suspended) else { return }
+        refresh()
+    }
+
     private func schedule() {
         scheduler?.cancel()
         guard !suspended, !demo, request == nil else { return }
         let delay = max(1, policy.nextAttempt.timeIntervalSinceNow)
         scheduler = Task { @MainActor [weak self] in
             do { try await Task.sleep(for: .seconds(delay)) } catch { return }
-            guard let self, self.policy.shouldRefresh(now: Date(), suspended: self.suspended) else { return }
+            guard let self, !Task.isCancelled, !self.suspended else { return }
+            // 墙钟与休眠计时略有偏差时仍需重新排程，不能丢失后续轮询。
+            guard self.policy.shouldRefresh(now: Date(), suspended: false) else { self.schedule(); return }
             self.refresh()
         }
     }
@@ -307,6 +320,10 @@ import UserNotifications
             "appPID": ProcessInfo.processInfo.processIdentifier, "serverPID": client.processID as Any? ?? NSNull(),
             "requestCount": client.requestCount, "quotaReadCount": client.quotaReadCount,
             "refreshing": refreshing, "suspended": suspended, "working": working,
+            "hidden": hidden, "dataStatus": String(describing: status),
+            "lastError": state.error.map { String(describing: $0) } as Any? ?? NSNull(),
+            "secondsSinceSuccess": state.snapshot.map { Date().timeIntervalSince($0.fetchedAt) } as Any? ?? NSNull(),
+            "retryInSeconds": max(0, policy.nextAttempt.timeIntervalSinceNow), "consecutiveFailures": policy.failures,
             "activityHasReceivedEvent": activity.hasReceivedEvent,
             "lastActivityEvent": activity.lastReceivedEvent?.rawValue as Any? ?? NSNull(),
             "activityCounts": activity.diagnosticCounts, "activityTransitions": diagnosticTransitions]

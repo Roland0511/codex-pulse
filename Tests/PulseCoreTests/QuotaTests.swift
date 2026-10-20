@@ -125,12 +125,14 @@ private func snapshot(_ used: Double, account: String = "a", reset: Date? = samp
         #expect(policy.nextAttempt == sampleTime.addingTimeInterval(60))
         policy.completed(success: true, now: sampleTime, hidden: true)
         #expect(policy.nextAttempt == sampleTime.addingTimeInterval(300))
-        for _ in 0..<10 { policy.completed(success: false, now: sampleTime, hidden: false) }
+        for _ in 0..<10 { policy.completed(success: false, now: sampleTime, hidden: true) }
         #expect(policy.nextAttempt == sampleTime.addingTimeInterval(900))
+        policy.completed(success: false, now: sampleTime, hidden: false)
+        #expect(policy.nextAttempt == sampleTime.addingTimeInterval(60))
         #expect(!policy.shouldRefresh(now: sampleTime.addingTimeInterval(1000), suspended: true))
         policy.resume(); #expect(policy.shouldRefresh(now: sampleTime, suspended: false))
     }
-    @Test func showingRestoresMinutePollingWithoutResettingBackoff() {
+    @Test func showingRestoresMinutePollingAndVisibleFailuresStayWithinAMinute() {
         var policy = RefreshPolicy()
         policy.completed(success: true, now: sampleTime, hidden: true)
         policy.visibilityChanged(hidden: false, lastSuccess: sampleTime)
@@ -138,7 +140,7 @@ private func snapshot(_ used: Double, account: String = "a", reset: Date? = samp
         policy.completed(success: false, now: sampleTime, hidden: false)
         policy.completed(success: false, now: sampleTime, hidden: false)
         policy.visibilityChanged(hidden: false, lastSuccess: sampleTime)
-        #expect(policy.nextAttempt == sampleTime.addingTimeInterval(120))
+        #expect(policy.nextAttempt == sampleTime.addingTimeInterval(60))
     }
 }
 

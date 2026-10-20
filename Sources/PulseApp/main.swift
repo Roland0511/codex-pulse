@@ -73,7 +73,7 @@ import PulseCore
                 MainActor.assumeIsolated { self?.store.suspend() }
             })
         }
-        for name in [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification] {
+        for name in [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification, NSWorkspace.sessionDidBecomeActiveNotification] {
             observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.store.resume() }
             })

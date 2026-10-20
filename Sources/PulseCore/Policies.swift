@@ -37,7 +37,8 @@ public struct RefreshPolicy: Sendable {
     public init() {}
     public mutating func completed(success: Bool, now: Date, hidden: Bool) {
         failures = success ? 0 : min(failures + 1, 5)
-        let interval = success ? (hidden ? 300.0 : 60.0) : min(900, 60 * pow(2, Double(failures - 1)))
+        // 可见时保持一分钟重试，避免短暂断线后长期停留在过期快照。
+        let interval = success ? (hidden ? 300.0 : 60.0) : min(hidden ? 900 : 60, 60 * pow(2, Double(failures - 1)))
         nextAttempt = now.addingTimeInterval(interval)
     }
     public mutating func resume() { nextAttempt = .distantPast }

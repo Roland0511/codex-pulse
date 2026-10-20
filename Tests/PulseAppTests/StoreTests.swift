@@ -30,7 +30,7 @@ import Testing
                 if '\(mode)' in ['logout-notify','api-notify'] and quotas==2:
                     print(json.dumps({'method':'account/updated','params':{'authMode':None if '\(mode)'=='logout-notify' else 'apikey'}}),flush=True)
                 time.sleep(0.1)
-                if '\(mode)'=='failure' and quotas>1:
+                if ('\(mode)'=='failure' and quotas>1) or ('\(mode)'=='transient-failure' and quotas==2):
                     print(json.dumps({'id':m['id'],'error':{'code':503,'message':'unavailable'}}),flush=True);continue
                 used=30+quotas if '\(mode)'=='consume' else 30
                 result={'rateLimits':{'primary':{'usedPercent':used,'windowDurationMins':120,'resetsAt':1894057200}}}
@@ -92,6 +92,41 @@ import Testing
         store.suspend(); store.resume(); try await settled(store)
         #expect(store.status == .ready)
         #expect(store.state.snapshot!.fetchedAt > prior!.fetchedAt)
+    }
+    @Test func minuteClockRevalidatesOverdueDataWithoutOpeningDetails() async throws {
+        let (store, directory) = try fake("consume")
+        defer { store.stop(); try? FileManager.default.removeItem(at: directory) }
+        store.refresh(); try await settled(store)
+        let previous = try #require(store.state.snapshot)
+        store.clockTick(at: previous.fetchedAt.addingTimeInterval(61))
+        for _ in 0..<5 { store.clockTick(at: previous.fetchedAt.addingTimeInterval(62)) }
+        try await settled(store)
+        #expect(store.client.quotaReadCount == 2)
+        #expect(store.state.snapshot?.selectedWindow?.remainingPercent == 68)
+        #expect(store.status == .ready && store.consumptionSerial == 1)
+        store.suspend()
+        store.clockTick(at: previous.fetchedAt.addingTimeInterval(1000))
+        #expect(store.client.quotaReadCount == 2 && !store.refreshing)
+    }
+    @Test func showingAfterFailureRetriesWithoutClickingRefresh() async throws {
+        let (store, directory) = try fake("transient-failure")
+        defer { store.stop(); try? FileManager.default.removeItem(at: directory) }
+        store.refresh(); try await settled(store)
+        let previous = store.state.snapshot
+        store.refresh(); try await settled(store)
+        #expect(store.status == .failed && store.state.snapshot == previous)
+        store.hidden = true
+        store.hidden = false
+        #expect(store.refreshing && store.state.snapshot == previous)
+        try await settled(store)
+        #expect(store.status == .ready && store.client.quotaReadCount == 3)
+    }
+    @Test func showingFreshDataDoesNotStartAnExtraRead() async throws {
+        let (store, directory) = try fake("normal")
+        defer { store.stop(); try? FileManager.default.removeItem(at: directory) }
+        store.refresh(); try await settled(store)
+        store.hidden = true; store.hidden = false
+        #expect(!store.refreshing && store.client.quotaReadCount == 1)
     }
     @Test func accountChangeClearsBeforeNewQuotaArrives() async throws {
         let (store, directory) = try fake("switch")
