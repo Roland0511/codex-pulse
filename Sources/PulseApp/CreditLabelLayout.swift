@@ -7,15 +7,16 @@ struct CreditLabelLayout {
     let font: NSFont
     let measuredWidth: CGFloat
 
-    static func fit(_ balance: Decimal, width: CGFloat) -> Self {
-        let candidates = CreditText.candidates(balance)
+    static func fit(_ balance: Decimal, width: CGFloat, decimalPlaces: Int = 1, expanded: Bool = false, maximumFontSize: CGFloat = 14) -> Self {
+        let compact = CreditText.candidates(balance, decimalPlaces: decimalPlaces)
+        let candidates = expanded ? [CreditText.expanded(balance, decimalPlaces: decimalPlaces)] + compact : compact
         let ordinary = candidates.filter { !$0.contains("e") }
         let scientific = candidates.filter { $0.contains("e") }
         for group in [ordinary, scientific] {
-            for size in [14.0, 13.0, 12.0] {
-                let base = NSFont.monospacedDigitSystemFont(ofSize: size, weight: .medium)
-                let font = base.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: size) } ?? base
-                for candidate in group {
+            for candidate in group {
+                for size in [14.0, 13.0, 12.0] where size <= maximumFontSize {
+                    let base = NSFont.monospacedDigitSystemFont(ofSize: size, weight: .medium)
+                    let font = base.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: size) } ?? base
                     let measured = ceil((candidate as NSString).size(withAttributes: [.font: font]).width)
                     if measured <= width { return Self(text: candidate, font: font, measuredWidth: measured) }
                 }

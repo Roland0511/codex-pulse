@@ -14,6 +14,7 @@ import UserNotifications
     var reminderMessage: String? { reminderMessageKey.map { tr($0) } }
     let client: QuotaClient
     let activity: ActivityStore
+    let throughput: ThroughputStore
     let speedMetadata: SpeedMetadataStore
     @Published private(set) var confirmedSpeedTier: SpeedTier?
     private var speedSubscriptions: Set<AnyCancellable> = []
@@ -38,6 +39,7 @@ import UserNotifications
     var hidden = false {
         didSet {
             guard hidden != oldValue else { return }
+            throughput.setHidden(hidden)
             policy.visibilityChanged(hidden: hidden, lastSuccess: state.snapshot?.fetchedAt)
             updateServerLifetime()
             // 从隐藏或不可见宿主返回时主动复核，不沿用隐藏期间的失败退避。
@@ -50,12 +52,14 @@ import UserNotifications
     @Published private(set) var remindersEnabled = false
 
     init(client: QuotaClient, demo: Bool = false, demoScenario: String = "normal", activity: ActivityStore? = nil, demoSpeed: SpeedTier = .standard,
-         serverIdleSeconds: Double = 10) {
+         serverIdleSeconds: Double = 10, throughput: ThroughputStore? = nil) {
         self.client = client; self.demo = demo; self.demoScenario = demoScenario
         self.demoSpeed = demoSpeed
         self.serverIdleSeconds = max(0, serverIdleSeconds)
         self.activity = activity ?? ActivityStore()
         speedMetadata = SpeedMetadataStore()
+        self.throughput = throughput ?? ThroughputStore(enabled: demo ? false : nil)
+        if !demo { self.throughput.bind(self.activity) }
         if let data = LocalDefaults.store.data(forKey: "alertLedger"),
            let decoded = try? JSONDecoder().decode(AlertPolicy.self, from: data) { alerts = decoded }
         else { alerts = AlertPolicy() }
@@ -250,12 +254,12 @@ import UserNotifications
 
     func suspend() {
         suspended = true; epoch += 1
-        activity.suspend(); speedMetadata.suspend()
+        activity.suspend(); speedMetadata.suspend(); throughput.setPaused(true)
         scheduler?.cancel(); resetTimer?.cancel(); idleServer?.cancel(); request?.cancel(); request = nil
         client.stop(); refreshing = false; now = Date()
         writeDiagnostics()
     }
-    func resume() { suspended = false; activity.resume(); speedMetadata.resume(); now = Date(); policy.resume(); refresh() }
+    func resume() { suspended = false; activity.resume(); speedMetadata.resume(); throughput.setPaused(false); now = Date(); policy.resume(); refresh() }
     func timeChanged() { now = Date(); resetTimer?.cancel(); policy.resume(); refresh() }
     private func accountChanged() {
         // 这也可能只是握手或同账户认证刷新；保留上次成功快照，
@@ -274,7 +278,7 @@ import UserNotifications
     }
     func stop() {
         suspend(); clockTimer?.invalidate(); clockTimer = nil; demoTimer?.invalidate(); demoTimer = nil
-        activity.stop(); speedMetadata.stop()
+        activity.stop(); speedMetadata.stop(); throughput.stop()
         writeDiagnostics()
     }
 

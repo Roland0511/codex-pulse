@@ -160,6 +160,8 @@ struct PreferencesView: View {
                 Text(tr("appearance.unavailable"))
                     .font(.caption).foregroundStyle(.secondary)
             }
+            CreditPrecisionPreferences()
+            ThroughputPreferences(throughput: store.throughput)
             Toggle(tr("launch"), isOn: Binding(get: { preferences.launchEnabled }, set: { preferences.setLaunch($0) }))
             Toggle(tr("reminders"), isOn: Binding(get: { store.remindersEnabled }, set: { store.enableReminders($0) }))
             if !store.demo {
@@ -216,5 +218,55 @@ struct PreferencesView: View {
                 .font(.caption).foregroundStyle(.secondary)
         }.formStyle(.grouped).frame(width: 440).padding(8)
             .environment(\.locale, language.text.locale)
+    }
+}
+
+struct CreditPrecisionPreferences: View {
+    @ObservedObject var creditDisplay = CreditDisplayStore.shared
+    @ObservedObject private var language = LanguageStore.shared
+
+    var body: some View {
+        Section(tr("credits.precision")) {
+            Picker(tr("credits.precision.compact"), selection: Binding(
+                get: { creditDisplay.compactDecimalPlaces }, set: { creditDisplay.setCompactDecimalPlaces($0) })) {
+                ForEach(Array(CreditText.decimalPlacesRange), id: \.self) { places in
+                    Text(precisionLabel(places, defaultPlaces: 1)).tag(places)
+                }
+            }
+            Picker(tr("credits.precision.expanded"), selection: Binding(
+                get: { creditDisplay.expandedDecimalPlaces }, set: { creditDisplay.setExpandedDecimalPlaces($0) })) {
+                ForEach(Array(CreditText.decimalPlacesRange), id: \.self) { places in
+                    Text(precisionLabel(places, defaultPlaces: 2)).tag(places)
+                }
+            }
+            Text(tr("credits.precision.help")).font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private func precisionLabel(_ places: Int, defaultPlaces: Int) -> String {
+        let key = (places == defaultPlaces ? "credits.precision.default" : "credits.precision.places")
+            + (places == 1 ? ".one" : "")
+        return tr(key, places)
+    }
+}
+
+struct ThroughputPreferences: View {
+    @ObservedObject var throughput: ThroughputStore
+    @ObservedObject private var language = LanguageStore.shared
+    var body: some View {
+        Section {
+            Toggle(tr("tps.setting"), isOn: Binding(get: { throughput.enabled }, set: { throughput.setEnabled($0) }))
+                .accessibilityIdentifier("throughput.enabled")
+            Picker(tr("tps.layout"), selection: Binding(get: { throughput.layout }, set: { throughput.setLayout($0) })) {
+                Text(tr("tps.layout.horizontal")).tag(ThroughputLayout.horizontal)
+                Text(tr("tps.layout.stacked")).tag(ThroughputLayout.stacked)
+            }
+            .disabled(!throughput.enabled)
+            .accessibilityIdentifier("throughput.layout")
+            Text(tr("tps.layout.hint")).font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(tr("tps.settingHint")).font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }

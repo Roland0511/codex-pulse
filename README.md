@@ -8,7 +8,7 @@ Codex Pulse keeps your **remaining Codex quota and reset countdown** within reac
 
 Built with SwiftUI and AppKit. Quota comes from the official local Codex App Server. The app does not read your conversations.
 
-**[v0.5.0](https://github.com/Roland0511/codex-pulse/releases/tag/v0.5.0) adds credit-balance display:** when a subscription window is exhausted and the same quota bucket has credits, the capsule shows compact values such as `60k`, without a trailing unit. Hover or expand for the full balance. Speed effects, window following and signed automatic updates remain available. Version 0.1.3 and earlier need one manual upgrade. [Update guide](docs/UPDATES.md).
+**Generation speed and layout choice:** show TPS beside quota, or stack it below quota in the original narrow capsule. Settings also lets you choose credit decimal places independently (compact: 1, expanded: 2 by default). TPS updates per completed response from local counters and model-item timing; it requires trusted activity status. [Usage guide](docs/USAGE.en.md#generation-speed-tps). [Update guide](docs/UPDATES.md).
 
 ## A little presence, useful detail
 
@@ -52,7 +52,7 @@ Low quota alerts and launch at login are also **off by default**. Notification p
 ## Privacy you can inspect
 
 - **Local quota access.** Authentication stays with the official service. Pulse does not parse tokens or browser cookies.
-- **No conversation reader.** No chat logs, prompts, tool arguments, or replies are collected. The helper skips content and sends only allowlisted status metadata and hashed identifiers locally.
+- **No conversation content collection.** Prompts, tool arguments, and replies are skipped. TPS reads only allowlisted counters and timing from bounded local records matching trusted active sessions; decoded content is not retained. The helper sends only status metadata and hashed identifiers locally.
 - **No Pulse backend or analytics.** Snapshots stay in memory. Preferences, hook backups, and alert deduplication stay on your Mac.
 - **No account actions.** Pulse does not reset quota, buy credits, sign you out, or control agents.
 

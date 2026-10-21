@@ -9,6 +9,12 @@ t = json.loads((root / "design/v0.1/tokens.json").read_text())
 values = {
     "capsuleWidth": t["capsule"]["width"], "height": t["capsule"]["height"],
     "dockedWidth": t["docked"]["width"], "detailsWidth": t["details"]["width"],
+    "stackedQuotaFontSize": t["docked"]["stacked"]["quotaFontSize"],
+    "stackedSpeedFontSize": t["docked"]["stacked"]["speedFontSize"],
+    "stackedQuotaLineHeight": t["docked"]["stacked"]["quotaLineHeight"],
+    "stackedSpeedLineHeight": t["docked"]["stacked"]["speedLineHeight"],
+    "stackedTopPadding": t["docked"]["stacked"]["topPadding"],
+    "dockedThroughputWidth": t["docked"]["throughputWidth"],
     "dockedExpandedWidth": t["docked"]["expandedWidth"],
     "detailsSingleWindowHeight": t["details"]["singleWindowHeight"],
     "detailsPadding": t["details"]["padding"], "detailsSectionSpacing": t["details"]["sectionSpacing"],

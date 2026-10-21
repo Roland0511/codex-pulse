@@ -12,7 +12,7 @@ Install and sign in to the official Codex app or CLI first. Pulse discovers the 
 
 The smallest remaining percentage among available windows is shown. Click to inspect every returned window, its actual duration, reset time, available reset count when provided, and the latest successful update. Primary and secondary slots are not assumed to have fixed durations. Unknown values stay unknown.
 
-When any subscription window is exhausted and the same quota bucket reports a positive credit balance, the capsule displays credits instead. All languages use compact values such as `60k` or `1.2M`, without a trailing unit label; narrow labels reduce precision to fit. Hover or expand for the full balance. The full line in credit mode indicates available credits, not a percentage. Subscription recovery switches the capsule back to percentages after a successful refresh.
+When any subscription window is exhausted and the same quota bucket reports a positive credit balance, the capsule displays credits instead. Compact capsules default to one decimal place, such as `60.0k` or `1.2M`; the hover strip and expanded details default to two, such as `60,123.45`. Settings → Credit decimal places lets you choose 0–3 places independently, with changes applied immediately and saved. Values are truncated down and retain trailing zeros; a narrow capsule may use fewer places or abbreviate to fit. Hover text and accessibility descriptions retain the exact original balance. Tiny positive balances display `<0.1` or the corresponding precision threshold rather than zero. The full line in credit mode indicates available credits, not a percentage. Subscription recovery switches the capsule back to percentages after a successful refresh.
 
 A connection failure retains the last successful value with an error label. A snapshot older than three minutes is marked out of date. Account changes clear old data. Reset countdowns do not prove that quota has recovered; recovery requires a new service response.
 
@@ -49,3 +49,11 @@ Both are off by default. Low quota alerts request macOS notification permission 
 ## Report a problem
 
 Include macOS, CPU architecture, Pulse version, Codex version, the visible error, and reproduction steps in [Issues](https://github.com/Roland0511/codex-pulse/issues). Do not attach account responses, authentication files, chat logs, unredacted screenshots, or hook backups. Use [private vulnerability reporting](../SECURITY.md) for security issues.
+
+## Generation speed (TPS)
+
+“Show generation speed (TPS)” is enabled by default in Settings. The docked capsule places quota and speed side by side; disabling it restores the narrow label. Complete the existing activity-hook trust setup first. TPS does not install hooks or change Codex configuration.
+
+Details say “Updates per response” and show the sample time. TPS uses official output tokens divided by local model-item timing intervals, including reasoning output; it is not a token-stream instantaneous or server decode benchmark. `~` marks a retained value, cleared after 60 seconds; `···` waits for a complete sample. “Wait” indicates permission waiting. “Multi” indicates multiple active sessions, whose speeds are not combined; details show the count. Idle, disconnected, and unavailable timing data never become a false zero. Missing fields or a partial initial tail wait for the next complete sample.
+
+Choose **Compact capsule layout → Side by side / Stacked** in Settings. The choice applies immediately and persists. Side by side uses 104 × 36 pt; Stacked keeps 54 × 36 pt with quota above speed. Hovered and pinned bars remain horizontal. Turning TPS off and back on preserves the layout.
