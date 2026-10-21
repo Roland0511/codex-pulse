@@ -6,6 +6,12 @@ public enum DesignTokens {
     public static let height: Double = 36
     public static let dockedWidth: Double = 54
     public static let detailsWidth: Double = 280
+    public static let stackedQuotaFontSize: Double = 12
+    public static let stackedSpeedFontSize: Double = 9
+    public static let stackedQuotaLineHeight: Double = 14
+    public static let stackedSpeedLineHeight: Double = 10
+    public static let stackedTopPadding: Double = 1
+    public static let dockedThroughputWidth: Double = 104
     public static let dockedExpandedWidth: Double = 204
     public static let detailsSingleWindowHeight: Double = 164
     public static let detailsPadding: Double = 14

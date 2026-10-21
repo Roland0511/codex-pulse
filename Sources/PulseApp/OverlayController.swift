@@ -113,7 +113,19 @@ enum DockDestination { case screen, codex }
         model.dragBegan = { [weak self] point in self?.beginDrag(point) }
         model.dragMoved = { [weak self] point in self?.drag(point) }
         model.dragEnded = { [weak self] in self?.endDrag() }
+        model.throughputEnabled = store.throughput.enabled
+        model.throughputLayout = store.throughput.layout
         restore()
+        store.throughput.$enabled.dropFirst().sink { [weak self] enabled in
+            guard let self else { return }
+            self.model.throughputEnabled = enabled
+            self.resize(animated: true)
+        }.store(in: &subscriptions)
+        store.throughput.$layout.dropFirst().sink { [weak self] layout in
+            guard let self else { return }
+            self.model.throughputLayout = layout
+            self.resize(animated: true)
+        }.store(in: &subscriptions)
         store.$recoverySerial.dropFirst().sink { [weak self] _ in self?.flash() }.store(in: &subscriptions)
         store.$consumptionSerial.dropFirst().sink { [weak self] _ in self?.showConsumption() }.store(in: &subscriptions)
         store.$working.removeDuplicates().sink { [weak self] value in

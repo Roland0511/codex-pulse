@@ -6,6 +6,12 @@ import PulseCore
 @MainActor final class ActivityStore: ObservableObject {
     @Published private(set) var isWorking = false
     @Published private(set) var workingSessions: Set<String> = []
+    struct Context: Equatable {
+        var connected = false
+        var turns: [String: String] = [:]
+        var waiting: Set<String> = []
+    }
+    @Published private(set) var context = Context()
     @Published private(set) var hasReceivedEvent = false
     @Published private var messageKey: String?
     var message: String? { messageKey.map { tr($0) } }
@@ -69,6 +75,9 @@ import PulseCore
     }
     private func publish() {
         ledger.prune(now: Date(), alive: alive)
+        let context = Context(connected: verified, turns: suspended ? [:] : ledger.activeTurns,
+                              waiting: suspended ? [] : ledger.waitingSessions)
+        if self.context != context { self.context = context }
         let next = !suspended && ledger.isWorking
         if isWorking != next { isWorking = next }
         let sessions = suspended ? [] : ledger.workingSessions
@@ -86,6 +95,6 @@ import PulseCore
         source?.cancel(); source = nil
         if descriptor >= 0 { Darwin.close(descriptor); descriptor = -1; unlink(url.path) }
         timer?.invalidate(); timer = nil; ledger.clear(); isWorking = false; workingSessions = []
-        buffered = []; verified = false; lastReceivedEvent = nil
+        buffered = []; verified = false; context = Context(); lastReceivedEvent = nil
     }
 }

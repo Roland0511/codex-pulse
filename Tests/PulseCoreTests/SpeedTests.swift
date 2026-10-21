@@ -39,6 +39,10 @@ import Testing
         #expect(SpeedMetadataUpdate.read(Data(String(decoding: data, as: UTF8.self).replacingOccurrences(of: "ultrafast", with: "unsupported").utf8)) == nil)
         #expect(SpeedMetadataUpdate.read(Data(String(decoding: data, as: UTF8.self).replacingOccurrences(of: "\"ultrafast\"", with: "null").utf8))?.tier == .standard)
     }
+    @Test func handshakeIDKeepsItsValueWhileOpaqueResultOnlyKeepsPresence() throws {
+        let result = try SpeedJSONProjection.read(Data(#"{"id":1,"result":{"userAgent":"synthetic"}}"#.utf8))
+        #expect(result == ["id": "1", "result": "present"])
+    }
     @Test func malformedDuplicateOversizedAndRequestsAreRejected() {
         let id = "123e4567-e89b-12d3-a456-426614174000"
         for json in [

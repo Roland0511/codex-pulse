@@ -3,6 +3,8 @@ import Combine
 import PulseCore
 
 @MainActor final class OverlayModel: ObservableObject {
+    @Published var throughputLayout = ThroughputLayout.horizontal
+    @Published var throughputEnabled = false
     @Published var width = DesignTokens.capsuleWidth
     @Published var height = DesignTokens.height
     @Published var side: DockSide?
@@ -23,7 +25,7 @@ import PulseCore
     var reduceMotion: Bool { motionPreference() }
     var compactWidth: Double {
         guard side != nil else { return DesignTokens.capsuleWidth }
-        return pinned || hovered ? DesignTokens.dockedExpandedWidth : DesignTokens.dockedWidth
+        return pinned || hovered ? DesignTokens.dockedExpandedWidth : (throughputEnabled && throughputLayout == .horizontal ? DesignTokens.dockedThroughputWidth : DesignTokens.dockedWidth)
     }
     var toggle: (() -> Void)?
     var close: (() -> Void)?

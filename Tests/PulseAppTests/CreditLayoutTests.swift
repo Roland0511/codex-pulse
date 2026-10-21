@@ -5,6 +5,15 @@ import Testing
 @testable import PulseCore
 
 @Suite("点数原生排版", .serialized) @MainActor struct CreditLayoutTests {
+    @Test func stackedNumbersRespectThePrototypeFontAndNarrowBudget() {
+        for places in CreditText.decimalPlacesRange {
+            for raw in ["60123.456", "0.001", "999.999", "99999999999999999999"] {
+                let layout = CreditLabelLayout.fit(Decimal(string: raw)!, width: 38, decimalPlaces: places, maximumFontSize: 12)
+                #expect(layout.measuredWidth <= 38)
+                #expect(layout.font.pointSize == 12)
+            }
+        }
+    }
     @Test func nativeFontFitsEveryCapsuleWidth() {
         let balances = ["0.005", "0.019", "9.999", "99.999", "999.99", "1000", "60000", "60123",
                         "999999", "1250000", "999999999", "1" + String(repeating: "0", count: 100)]
@@ -16,8 +25,21 @@ import Testing
                 #expect(!layout.text.contains("…") && !layout.text.contains("\n"))
             }
         }
-        #expect(CreditLabelLayout.fit(60000, width: 38).text == "60k")
-        #expect(CreditLabelLayout.fit(60000, width: 156).text == "60k")
+        #expect(CreditLabelLayout.fit(60000, width: 38).text == "60.0k")
+        #expect(CreditLabelLayout.fit(60000, width: 156).text == "60.0k")
+    }
+
+    @Test func selectedPrecisionFitsBeforeFallingBack() {
+        let balance = Decimal(string: "60123.4567")!
+        #expect(CreditLabelLayout.fit(balance, width: 38).text == "60.1k")
+        #expect(CreditLabelLayout.fit(balance, width: 110, decimalPlaces: 2, expanded: true).text == "60,123.45")
+        for places in CreditText.decimalPlacesRange {
+            for balance in [Decimal(string: "999.9999")!, Decimal(string: "60123.4567")!, Decimal(string: "0.0007")!] {
+                let layout = CreditLabelLayout.fit(balance, width: 38, decimalPlaces: places)
+                #expect(layout.measuredWidth <= 38)
+                #expect(!layout.text.contains("…"))
+            }
+        }
     }
 
     @Test func creditDemoDoesNotEmitConsumptionOrRecovery() {
@@ -129,6 +151,7 @@ import Testing
         let suite = "dev.roland.codex-pulse.credit-render.\(UUID().uuidString)"
         LocalDefaults.store = try #require(UserDefaults(suiteName: suite))
         let oldLanguage = LanguageStore.shared.selection, oldAppearance = NSApp.appearance
+        let precision = CreditDisplayStore(defaults: LocalDefaults.store)
         defer {
             LanguageStore.shared.setSelection(oldLanguage); NSApp.appearance = oldAppearance
             LocalDefaults.store.removePersistentDomain(forName: suite); LocalDefaults.store = oldDefaults
@@ -140,15 +163,15 @@ import Testing
                 for scenario in ["credits", "credits-small", "credits-large", "credits-working", "credits-error", "credits-stale"] {
                     let store = QuotaStore(client: QuotaClient(executable: nil), demo: true, demoScenario: scenario)
                     store.start(); defer { store.stop() }
-                    for state in ["left", "right", "free", "details"] {
+                    for state in ["left", "right", "free", "hover", "details"] {
                         let model = OverlayModel(motionPreference: { true })
-                        model.side = state == "left" ? .left : state == "right" ? .right : nil
+                        model.side = state == "left" || state == "hover" ? .left : state == "right" ? .right : nil
                         model.blend = model.side == nil ? 0 : 1
-                        model.width = state == "details" ? 280 : state == "free" ? 180 : 54
+                        model.width = state == "details" ? 280 : state == "hover" ? 204 : state == "free" ? 180 : 54
                         model.height = state == "details" ? 300 : 36
                         model.expanded = state == "details"; model.working = store.working
                         model.consumptionDetected = store.working
-                        let host = NSHostingView(rootView: OverlayView(store: store, model: model))
+                        let host = NSHostingView(rootView: OverlayView(store: store, model: model, creditDisplay: precision))
                         host.sizingOptions = []
                         let panel = NSWindow(contentRect: CGRect(x: 100, y: 100, width: model.width + 32, height: model.height + 32),
                                              styleMask: [.borderless], backing: .buffered, defer: false)

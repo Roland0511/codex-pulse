@@ -42,6 +42,17 @@ struct OverlayView: View {
     @ObservedObject var model: OverlayModel
     @ObservedObject private var appearance = AppearanceStore.shared
     @ObservedObject private var language = LanguageStore.shared
+    @ObservedObject var creditDisplay = CreditDisplayStore.shared
+    @ObservedObject var throughput: ThroughputStore
+    init(store: QuotaStore, model: OverlayModel, creditDisplay: CreditDisplayStore = .shared) {
+        self.store = store; self.model = model; self.creditDisplay = creditDisplay; self.throughput = store.throughput
+    }
+    private var stackedHeader: Bool {
+        model.throughputEnabled && model.throughputLayout == .stacked && model.side != nil &&
+            model.width < DesignTokens.percentageOnlyBelowWidth
+    }
+    private var narrowHeader: Bool { model.width < (model.throughputEnabled ? DesignTokens.countdownRevealFrom : DesignTokens.percentageOnlyBelowWidth) }
+
     private var text: PulseText { language.text }
     private var palette: Palette { appearance.palette }
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
@@ -54,6 +65,9 @@ struct OverlayView: View {
         return store.state.snapshot?.creditsByBucket?[bucket]
     }
     private var fullCredits: String { displayedCredits?.fullBalance ?? "—" }
+    private var detailCredits: String {
+        creditBalance.map { CreditText.expanded($0, decimalPlaces: creditDisplay.expandedDecimalPlaces) } ?? "—"
+    }
     private var numberScope: String {
         guard let snapshot = store.state.snapshot else { return "loading" }
         if case let .credits(bucket, _) = snapshot.displayMode { return snapshot.accountKey + ":credits:" + bucket }
@@ -61,12 +75,15 @@ struct OverlayView: View {
     }
     private var creditLayout: CreditLabelLayout? {
         guard let creditBalance else { return nil }
-        let narrow = model.width < DesignTokens.percentageOnlyBelowWidth
+        let narrow = narrowHeader
         let warning = store.status != .ready || restricted || store.demo
         let available = model.width - (narrow ? 16 : 12 + (showsPin ? 36 : 12))
             - (!narrow && warning ? 17 : 0) - (!narrow ? 7 : 0)
-            - (model.width >= DesignTokens.countdownRevealFrom ? 48 : 0)
-        return CreditLabelLayout.fit(creditBalance, width: max(38, available))
+            - (model.throughputEnabled ? (stackedHeader ? 0 : (narrow ? 48 : 68)) : (model.width >= DesignTokens.countdownRevealFrom ? 48 : 0))
+        let expanded = model.side != nil && !narrow
+        return CreditLabelLayout.fit(creditBalance, width: max(38, available),
+            decimalPlaces: expanded ? creditDisplay.expandedDecimalPlaces : creditDisplay.compactDecimalPlaces,
+            expanded: expanded, maximumFontSize: stackedHeader ? DesignTokens.stackedQuotaFontSize : 14)
     }
     private var speedTier: SpeedTier {
         store.demo ? store.demoSpeed : store.confirmedSpeedTier ?? appearance.speed.tier
@@ -78,7 +95,7 @@ struct OverlayView: View {
     private var showsPin: Bool { model.side != nil && model.width >= DesignTokens.countdownRevealFrom }
     private var restricted: Bool { store.state.snapshot?.ordinaryUsageAllowed == false || store.state.snapshot?.hasReachedLimit == true }
     private var hasDataWarning: Bool { (store.status != .ready && store.status != .loading) || restricted }
-    private var compactWarning: Bool { model.width < DesignTokens.percentageOnlyBelowWidth && hasDataWarning }
+    private var compactWarning: Bool { narrowHeader && hasDataWarning }
     private var numberColor: Color { hasDataWarning ? palette.muted : palette.ink }
     private var tint: Color {
         if creditBalance != nil { return store.status == .ready && !restricted ? palette.signal : palette.muted }
@@ -146,37 +163,15 @@ struct OverlayView: View {
 
     private var header: some View {
         ZStack(alignment: .bottomLeading) {
-            HStack(spacing: 7) {
-                if let layout = creditLayout {
-                    QuotaNumberText(text: layout.text, value: creditBalance.map { NSDecimalNumber(decimal: $0).doubleValue },
-                                    font: Font(layout.font), animate: store.status == .ready && !reduceMotion)
-                        .id(numberScope).foregroundStyle(numberColor)
-                        .lineLimit(1).fixedSize().accessibilityIdentifier("quota.creditBalance")
-                } else {
-                    QuotaNumberText(text: percentage, value: selected?.remainingPercent,
-                                    font: .system(size: 14, weight: .medium, design: .rounded), animate: store.status == .ready && !reduceMotion)
-                        .id(numberScope).monospacedDigit()
-                        .foregroundStyle(numberColor).fixedSize()
-                }
-                if model.width >= DesignTokens.percentageOnlyBelowWidth && (store.status != .ready || restricted || store.demo) {
-                    Image(systemName: store.demo ? "eye" : "exclamationmark.circle").font(.system(size: 10))
-                        .foregroundStyle(palette.warning)
-                }
-                if model.width >= DesignTokens.percentageOnlyBelowWidth {
-                    Text(compactDescription).font(.system(size: 10.5)).foregroundStyle(palette.muted)
-                        .lineLimit(1).truncationMode(.tail)
-                        .opacity(min(1, max(0, (model.width - DesignTokens.countdownRevealFrom) /
-                                             (DesignTokens.countdownRevealTo - DesignTokens.countdownRevealFrom))))
-                }
-                Spacer(minLength: 0)
+            Group {
+                if stackedHeader { stackedThroughputHeader }
+                else if model.throughputEnabled { throughputHeader }
+                else { quotaHeader }
             }
-            .padding(.leading, model.width < DesignTokens.percentageOnlyBelowWidth ? 8 : 12)
-            .padding(.trailing, showsPin ? 36 : (model.width < DesignTokens.percentageOnlyBelowWidth ? 8 : 12))
-            .frame(maxWidth: .infinity)
             .frame(height: DesignTokens.height - 7)
             .frame(height: DesignTokens.height, alignment: .top)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(accessibilitySummary)
+            .accessibilityLabel(accessibilitySummary + (model.throughputEnabled ? " · " + throughputAccessibility : ""))
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { model.toggle?() }
             .accessibilityHint(tr("quota.hint"))
@@ -186,7 +181,6 @@ struct OverlayView: View {
                 .padding(.trailing, compactWarning ? DesignTokens.compactStatusSize + DesignTokens.compactStatusTrailing + DesignTokens.compactStatusGap : 10)
                 .padding(.bottom, 5)
             if compactWarning {
-                // 独立覆盖在细线右端，不占数字宽度、不撑大吸附轮廓。
                 Image(systemName: "exclamationmark.circle.fill")
                     .font(.system(size: DesignTokens.compactStatusSize, weight: .semibold))
                     .foregroundStyle(palette.warning)
@@ -215,7 +209,92 @@ struct OverlayView: View {
             }
         }
         .accessibilityElement(children: .contain)
-        .help(accessibilitySummary)
+        .help(accessibilitySummary + (model.throughputEnabled ? " · " + throughputAccessibility : ""))
+    }
+    @ViewBuilder private var quotaNumber: some View {
+        if let layout = creditLayout {
+            QuotaNumberText(text: layout.text, value: creditBalance.map { NSDecimalNumber(decimal: $0).doubleValue },
+                            font: Font(layout.font), animate: store.status == .ready && !reduceMotion)
+                .id(numberScope + ":precision:\(creditDisplay.compactDecimalPlaces):\(creditDisplay.expandedDecimalPlaces)")
+                .foregroundStyle(numberColor)
+                .lineLimit(1).fixedSize().accessibilityIdentifier("quota.creditBalance")
+        } else {
+            QuotaNumberText(text: percentage, value: selected?.remainingPercent,
+                            font: .system(size: stackedHeader ? DesignTokens.stackedQuotaFontSize : 14, weight: .medium, design: .rounded), animate: store.status == .ready && !reduceMotion)
+                .id(numberScope).monospacedDigit()
+                .foregroundStyle(numberColor).fixedSize()
+        }
+    }
+    private var quotaHeader: some View {
+        HStack(spacing: 7) {
+            quotaNumber
+            if model.width >= DesignTokens.percentageOnlyBelowWidth && (store.status != .ready || restricted || store.demo) {
+                Image(systemName: store.demo ? "eye" : "exclamationmark.circle").font(.system(size: 10))
+                    .foregroundStyle(palette.warning)
+            }
+            if model.width >= DesignTokens.percentageOnlyBelowWidth {
+                Text(compactDescription).font(.system(size: 10.5)).foregroundStyle(palette.muted)
+                    .lineLimit(1).truncationMode(.tail)
+                    .opacity(min(1, max(0, (model.width - DesignTokens.countdownRevealFrom) /
+                                         (DesignTokens.countdownRevealTo - DesignTokens.countdownRevealFrom))))
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.leading, model.width < DesignTokens.percentageOnlyBelowWidth ? 8 : 12)
+        .padding(.trailing, showsPin ? 36 : (model.width < DesignTokens.percentageOnlyBelowWidth ? 8 : 12))
+    }
+    private var stackedThroughputHeader: some View {
+        VStack(spacing: 0) {
+            quotaNumber.frame(height: DesignTokens.stackedQuotaLineHeight)
+            ThroughputInline(presentation: throughput.presentation, narrow: true, stacked: true)
+                .frame(width: model.width - 16, height: DesignTokens.stackedSpeedLineHeight)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.top, DesignTokens.stackedTopPadding)
+    }
+    private var throughputHeader: some View {
+        HStack(spacing: narrowHeader ? 5 : 8) {
+            HStack(spacing: 4) {
+                quotaNumber
+                if !narrowHeader && (hasDataWarning || store.demo) {
+                    Image(systemName: store.demo ? "eye" : "exclamationmark.circle")
+                        .font(.system(size: 10)).foregroundStyle(palette.warning)
+                }
+                Spacer(minLength: 0)
+            }.frame(maxWidth: .infinity, alignment: .leading)
+            Rectangle().fill(palette.edge).frame(width: 1, height: 14)
+            ThroughputInline(presentation: throughput.presentation, narrow: narrowHeader)
+                .frame(width: narrowHeader ? 37 : 52, alignment: .trailing)
+        }
+        .padding(.leading, narrowHeader ? 8 : 12)
+        .padding(.trailing, showsPin ? 36 : (narrowHeader ? 8 : 12))
+    }
+    private var throughputAccessibility: String {
+        let state = throughput.presentation
+        let retained = state.sample != nil && (state.phase == .waiting || state.phase == .retained)
+        return tr("tps.title") + " · " + (retained ? tr("tps.lastValue") + " " : "") + state.rateText + " t/s · " +
+            tr("tps." + state.phase.rawValue) + (state.phase == .parallel ? " (\(state.sessions))" : "")
+    }
+    private var throughputDetails: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(tr("tps.title")).font(.system(size: 12, weight: .medium))
+                Spacer(minLength: 4)
+                Text(throughput.presentation.rateText + " t/s")
+                    .font(.system(size: 18, weight: .medium, design: .rounded)).monospacedDigit()
+            }
+            Text(tr("tps.responseUpdates")).font(.system(size: 10)).foregroundStyle(palette.muted)
+            Text(tr("tps." + throughput.presentation.phase.rawValue) +
+                 (throughput.presentation.phase == .parallel ? " (\(throughput.presentation.sessions))" : ""))
+                .font(.system(size: 10)).foregroundStyle(palette.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            if let date = throughput.presentation.sample?.recordedAt {
+                Text(tr("tps.lastResponse", date.formatted(.dateTime.hour().minute().second().locale(text.locale))))
+                    .font(.system(size: 10)).foregroundStyle(palette.muted)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .help(tr("tps.method"))
     }
     private var compactDescription: String {
         guard store.status == .ready, !restricted, !store.demo else { return statusText }
@@ -290,14 +369,16 @@ struct OverlayView: View {
 
     private var detailContent: some View {
         VStack(alignment: .leading, spacing: DesignTokens.detailsSectionSpacing) {
+            if model.throughputEnabled { throughputDetails }
             if let snapshot = store.state.snapshot, !snapshot.windows.isEmpty {
                 if creditBalance != nil {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(tr("credits.remaining")).font(.system(size: 12, weight: .medium))
-                        QuotaNumberText(text: fullCredits, value: creditBalance.map { NSDecimalNumber(decimal: $0).doubleValue },
+                        QuotaNumberText(text: detailCredits, value: creditBalance.map { NSDecimalNumber(decimal: $0).doubleValue },
                                         font: .system(size: 22, weight: .medium, design: .rounded), animate: store.status == .ready && !reduceMotion)
-                            .id(numberScope)
+                            .id(numberScope + ":precision:\(creditDisplay.expandedDecimalPlaces)")
                             .monospacedDigit().fixedSize(horizontal: false, vertical: true)
+                            .help(fullCredits)
                         Text(tr("credits.trackHint")).font(.system(size: 10)).foregroundStyle(palette.muted)
                         QuotaProgressTrack(remaining: 100, color: tint, track: palette.track, surface: palette.surface,
                             animating: model.consumptionAnimating, speed: speedTier, reduceMotion: reduceMotion)
@@ -426,5 +507,36 @@ struct DragSurface: NSViewRepresentable {
         if event.keyCode == 53 { model?.close?() }
         else if event.keyCode == 49 || event.keyCode == 36 { model?.toggle?() }
         else { super.keyDown(with: event) }
+    }
+}
+
+struct ThroughputInline: View {
+    let presentation: ThroughputPresentation
+    let narrow: Bool
+    var stacked = false
+    @ObservedObject private var appearance = AppearanceStore.shared
+    @ObservedObject private var language = LanguageStore.shared
+    private var label: String {
+        switch presentation.phase {
+        case .measured: return presentation.rateText
+        case .retained: return "~" + presentation.rateText
+        case .waiting: return tr("tps.short.waiting")
+        case .sampling: return "···"
+        case .parallel: return tr("tps.short.parallel")
+        case .idle: return tr("tps.short.idle")
+        default: return "—"
+        }
+    }
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 1) {
+            Text(label).font(.system(size: stacked ? DesignTokens.stackedSpeedFontSize : (narrow ? 12 : 14), weight: .medium, design: .rounded))
+                .monospacedDigit()
+            if presentation.phase == .measured || presentation.phase == .retained {
+                Text("t/s").font(.system(size: 8))
+            }
+        }
+        .foregroundStyle(presentation.phase == .measured ? appearance.palette.signal : appearance.palette.muted)
+        .lineLimit(1).minimumScaleFactor(0.8)
+        .accessibilityIdentifier("throughput.readout")
     }
 }

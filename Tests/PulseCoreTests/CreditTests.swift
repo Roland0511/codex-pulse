@@ -47,14 +47,35 @@ import Testing
     }
 
     @Test func decimalFormattingNeverRoundsUp() {
-        for (raw, expected) in [("999.999", "999.99"), ("1000", "1k"), ("60000", "60k"),
+        for (raw, expected) in [("999.999", "999.9"), ("1000", "1.0k"), ("60000", "60.0k"),
                                 ("60123", "60.1k"), ("999999", "999.9k"), ("1250000", "1.2M"),
-                                ("1000000000", "1B"), ("125.750", "125.75"), ("0.005", "<0.01"),
-                                ("0.019", "0.01")] {
+                                ("1000000000", "1.0B"), ("125.750", "125.7"), ("0.005", "<0.1"),
+                                ("0.019", "<0.1")] {
             #expect(CreditText.compact(Decimal(string: raw)!) == expected)
         }
         let huge = Decimal(string: "1" + String(repeating: "0", count: 100))!
         #expect(CreditText.compact(huge) == "1e100")
+    }
+
+    @Test func configurablePrecisionPreservesZerosAndPositiveRemainders() {
+        let value = Decimal(string: "60123.4567")!
+        #expect(CreditText.compact(value, decimalPlaces: 0) == "60k")
+        #expect(CreditText.compact(value, decimalPlaces: 2) == "60.12k")
+        #expect(CreditText.compact(value, decimalPlaces: 3) == "60.123k")
+        #expect(CreditText.expanded(value) == "60,123.45")
+        #expect(CreditText.expanded(value, decimalPlaces: 0) == "60,123")
+        #expect(CreditText.expanded(value, decimalPlaces: 3) == "60,123.456")
+        #expect(CreditText.expanded(60000) == "60,000.00")
+        #expect(CreditText.expanded(0) == "0.00")
+        for places in CreditText.decimalPlacesRange {
+            let tiny = Decimal(string: "0.0007")!
+            let expected = places == 0 ? "<1" : "<0." + String(repeating: "0", count: places - 1) + "1"
+            #expect(CreditText.compact(tiny, decimalPlaces: places) == expected)
+            #expect(CreditText.expanded(tiny, decimalPlaces: places) == expected)
+        }
+        #expect(CreditText.expanded(Decimal(string: "12345678901234567890.1299")!) == "12,345,678,901,234,567,890.12")
+        #expect(CreditText.expanded(.nan) == "—")
+        #expect(CreditText.compact(-1) == "—")
     }
 
     @Test func staleFailureAndAccountChangesPreserveBoundaries() throws {
