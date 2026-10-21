@@ -1,6 +1,17 @@
 # macOS 手动分发
 
-2026-10-20 当前公开分发：[v0.5.2 / build 16](https://github.com/Roland0511/codex-pulse/releases/tag/v0.5.2)。改善额度过期后的自动恢复，并在紧凑标签显示异常符号。应用与 DMG 均获 Apple Accepted，公开附件和 Latest 更新清单核验通过，本机已从公开 ZIP 更新。历史交付记录保留如下。
+2026-10-22 当前公开分发：[v0.6.0 / build 18](https://github.com/Roland0511/codex-pulse/releases/tag/v0.6.0)。新增逐响应 TPS、可选横向 / 上下小胶囊布局，以及分别可调的点数小数位。应用与 DMG 均获 Apple Accepted，公开附件和 Latest 更新清单核验通过，本机已从公开 ZIP 更新并启动。历史交付记录保留如下。
+
+## v0.6.0 / build 18 正式发布（2026-10-22）
+
+- [PR #16](https://github.com/Roland0511/codex-pulse/pull/16) 已合并，干净发布源码为 `1f26f5a0c0ed616c6489586367f55c96aeed7942`；[PR CI](https://github.com/Roland0511/codex-pulse/actions/runs/39646842483) 与 [main CI](https://github.com/Roland0511/codex-pulse/actions/runs/39647328116) 均通过。签名 tag `v0.6.0` 指向该源码；后续仅补充交付文档，不改变发布包。
+- 官方 `scripts/release.py` 完成回归、Universal 构建、Developer ID 全架构签名、Hardened Runtime 与时间戳。应用及 DMG 的 Apple 公证均为 Accepted，附票和 Gatekeeper 核验通过；最终 ZIP 解压副本、只读挂载 DMG 内应用及 Sparkle 签名分别验证通过。
+- 正式附件仅为 DMG、ZIP、`appcast.xml`、`SHA256SUMS.txt`。发布后匿名下载全部附件和 Latest feed，逐字节与已核验产物一致；发布状态 `complete=true`。忽略的产物目录为 `dist/releases/v0.6.0-build18/`。
+- DMG SHA-256：`a9fdbf610331e842b40c99651048d075f643b4ca705a9528de82be46877f0214`。
+- ZIP SHA-256：`47fd87d4de25dd0848993e05ed276edb252f803f26dabb94db9af23fae84a79d`。
+- 发布完成后再次匿名下载公开 ZIP，验证版本、双架构、严格签名、附票、Gatekeeper 及已批准摘要，再替换 `/Applications/Codex Pulse.app`。安装后主程序、helper、Info.plist 与公开包一致，确认版本 0.6.0 / build 18，且仅一个正式路径进程运行。
+- 原安装 0.5.3 本地体验版和偏好备份于忽略目录 `local-data/release-0.6.0/install-backup-20261022-020009/`。原有偏好经 JSON 语义比较无变化，hooks 与已安装 helper 摘要保持。真实设置可见版本、默认 1 / 2 位、横向 / 上下布局选项及「已启用，连接就绪」。
+- 本次是公开 ZIP 手动替换验收；Sparkle 清单和签名已验证，不重复声明自动安装、真实双会话推理、拖动、多屏、休眠或 Intel 实机验收。旧体验版桌面工具读取超时后，保存偏好并受控停止其唯一进程，再进行可恢复替换；新正式版设置读取和菜单操作成功。分层证据见 [验证记录](VERIFICATION.md)。
 
 历史交付状态：2026-10-10 v0.1.0（构建 2）正式手动分发包完成，包含完整应用图标和中文拖放安装界面，已在真实 Finder 中确认。应用及 DMG 均通过 Developer ID 签名、Apple 公证、票据及 Gatekeeper；最终 ZIP 解压、DMG 包内应用只读核验和 SHA-256 独立复核通过。支持 arm64 / x86_64，最低 macOS 14；Intel 和旧系统仅完成编译，未做实机运行验收。
 

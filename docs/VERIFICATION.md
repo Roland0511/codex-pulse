@@ -611,3 +611,11 @@ DMG 外层追加核验中，沙箱内 codesign / stapler 曾返回签名或读�
 - 原生渲染：`PULSE_TPS_RENDER=<私有目录> swift test --filter 'Throughput|stackedNumbers'` 通过；中英 / 浅深色、横向与上下、9 个 TPS 状态共 72 个组合案例（4 张组合图）。实际操作隔离原生 Picker 切至上下，观察 54 pt 双行数字、长条和详情保持原排版；关闭后选择器禁用但值保留，重启 TPS 仍上下。打开菜单后分别执行 Up / Return 可切回横向。合成控制夹具报告通过，进程已退出；真实账户偏好未被夹具修改。
 - 本机工具再次确认 CLI 0.163.0 / Swift 6.4。设计 token、本地化生成漂移和 `git diff --check` 通过；Frontend Design Premium strict audit 无发现；designmd lint 0 error，1 条既有无 YAML 格式提示。构建 / 远端 CI / 正式发布和安装结果待完成后单独记录，不以这些本地检查预先声明上线。
 - 渲染及真实输入均使用明确标注的合成数据，截图保留于忽略目录 `private-evidence/tps-layout-renders/`；不替代真实双会话推理、多屏拖动、物理休眠、完整 VoiceOver 或 Intel 机器验收。当前变化复用原有 TPS 状态与采集边界，不改认证、hooks 或账户。
+
+### v0.6.0 正式发布与本机安装追加
+
+- 发布源码 `1f26f5a0c0ed616c6489586367f55c96aeed7942` 经 [PR #16](https://github.com/Roland0511/codex-pulse/pull/16) 合并；PR 与 main 的 macOS CI 均通过。正式发布器重新运行检查、Swift / Python 回归及双架构构建，完成 Developer ID 签名、应用 / DMG 两次 Apple Accepted、附票和 Gatekeeper；最终 ZIP / DMG 容器与 Sparkle 签名独立复核通过。
+- [v0.6.0 / build 18](https://github.com/Roland0511/codex-pulse/releases/tag/v0.6.0) 已公开，四项正式附件及 Latest feed 匿名下载与已验证产物逐字节一致，发布状态 `complete=true`。正式发布目录 `dist/releases/v0.6.0-build18/` 和安装证据 `private-evidence/tps-layout-release/` 均忽略，不提交真实数据。
+- 发布完成后重新下载公开 ZIP，严格验证后替换正式安装路径；安装后版本 0.6.0 / build 18、主程序 / helper / Info.plist 摘要、严格签名 / 票据 / Gatekeeper 均通过，只有一个 `/Applications/Codex Pulse.app/Contents/MacOS/CodexPulse` 进程。旧体验版 0.5.3 及偏好已备份到 `local-data/release-0.6.0/install-backup-20261022-020009/`。
+- 实际正式版设置显示「版本 0.6.0」、小胶囊默认 1 位 / 展开默认 2 位、TPS 已开启和工作状态「已启用，连接就绪」。打开布局菜单，确认「横向并排」「上下布局」两项后 Esc 退出，保留用户原选择。安装前后偏好逐项比较，`shortcut` / `alertLedger` 的 JSON 编码字节顺序变化，解码后语义完全一致；hooks 及已安装 helper 摘要不变。
+- 旧体验版的桌面工具读取再次超时，保存偏好后受控停止该应用唯一进程，再按阶段替换，未将其记为菜单正常退出。新正式版启动、设置读取和菜单操作成功。本轮未把截图、几何回归或合成状态扩展为真实拖动、多屏、休眠、双会话推理或 Sparkle 自动安装验收。
