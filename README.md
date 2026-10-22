@@ -8,7 +8,7 @@ Codex Pulse keeps your **remaining Codex quota and reset countdown** within reac
 
 Built with SwiftUI and AppKit. Quota comes from the official local Codex App Server. The app does not read your conversations.
 
-**Generation speed and layout choice:** show TPS beside quota, or stack it below quota in the original narrow capsule. Settings also lets you choose credit decimal places independently (compact: 1, expanded: 2 by default). TPS updates per completed response from local counters and model-item timing; it requires trusted activity status. [Usage guide](docs/USAGE.en.md#generation-speed-tps). [Update guide](docs/UPDATES.md).
+**Generation speed and layout choice:** show TPS beside quota, or stack it below quota in the original narrow capsule. Settings also lets you choose credit decimal places independently (compact: 1, expanded: 2 by default). Multiple active conversations show Total TPS, with contributing session counts in details. TPS updates per completed response from local counters and model-item timing; it requires trusted activity status. [Usage guide](docs/USAGE.en.md#generation-speed-tps). [Update guide](docs/UPDATES.md).
 
 ## A little presence, useful detail
 

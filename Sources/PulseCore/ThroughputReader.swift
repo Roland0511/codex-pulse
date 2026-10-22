@@ -23,14 +23,16 @@ public actor ThroughputReader {
     private var paths: [String: URL] = [:]
     private var cursors: [String: Cursor] = [:]
     private var lastIndex = Date.distantPast
+    private var indexedSessions: Set<String> = []
     public init(root: URL) { self.root = root }
-    public func reset() { cursors = [:]; paths = [:]; lastIndex = .distantPast }
+    public func reset() { cursors = [:]; paths = [:]; lastIndex = .distantPast; indexedSessions = [] }
     public func read(sessions: Set<String>, now: Date = Date()) -> Result {
         cursors = cursors.filter { sessions.contains($0.key) }
         paths = paths.filter { sessions.contains($0.key) }
+        indexedSessions.formIntersection(sessions)
         if sessions.isEmpty { return Result() }
-        if now.timeIntervalSince(lastIndex) >= 10 {
-            index(sessions); lastIndex = now
+        if now.timeIntervalSince(lastIndex) >= 10 || !sessions.isSubset(of: indexedSessions) {
+            index(sessions); lastIndex = now; indexedSessions = sessions
         }
         var result = Result()
         for session in sessions {

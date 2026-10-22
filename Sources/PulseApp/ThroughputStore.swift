@@ -6,6 +6,19 @@ enum ThroughputLayout: String, CaseIterable {
     case horizontal, stacked
 }
 
+@MainActor extension ThroughputPresentation {
+    var readingTitle: String { tr(isAggregate ? "tps.total" : "tps.title") }
+    var readingStatus: String {
+        let status = tr("tps." + (isAggregate && (phase == .measured || phase == .retained) ? "total." : "") + phase.rawValue)
+        guard isAggregate else { return status }
+        let coverage = tr("tps.coverage", contributingSessions, generatingSessions, sessions - generatingSessions)
+        return coverage + " · " + status + (isPartial ? " · " + tr("tps.partial") : "")
+    }
+    func readingTimestamp(_ time: String) -> String {
+        tr(isAggregate ? "tps.oldestResponse" : "tps.lastResponse", time)
+    }
+}
+
 @MainActor final class ThroughputStore: ObservableObject {
     @Published private(set) var layout: ThroughputLayout
     @Published private(set) var enabled: Bool
@@ -48,7 +61,7 @@ enum ThroughputLayout: String, CaseIterable {
         poll?.cancel(); poll = nil
         presentation = ThroughputPresentation.resolve(connected: context.connected, paused: paused || hidden || !enabled,
             turns: context.turns, waiting: context.waiting, samples: [:], unavailable: [], now: Date())
-        guard enabled, !paused, !hidden, context.connected, context.turns.count == 1 else {
+        guard enabled, !paused, !hidden, context.connected, !context.turns.isEmpty else {
             let reader = reader
             Task { await reader.reset() }
             return

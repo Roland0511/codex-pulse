@@ -119,28 +119,50 @@ public struct ThroughputTracker: Sendable {
 }
 
 public enum ThroughputPhase: String, Equatable, Sendable {
-    case disconnected, idle, waiting, sampling, measured, retained, parallel, unavailable, paused
+    case disconnected, idle, waiting, sampling, measured, retained, unavailable, paused
 }
 public struct ThroughputPresentation: Equatable, Sendable {
     public let phase: ThroughputPhase
     public let sample: ThroughputSample?
     public let sessions: Int
-    public init(phase: ThroughputPhase, sample: ThroughputSample? = nil, sessions: Int = 0) {
+    public let generatingSessions: Int
+    public let contributingSessions: Int
+    public var isAggregate: Bool { sessions > 1 }
+    public var isPartial: Bool { sample != nil && contributingSessions < generatingSessions }
+    public var showsApproximation: Bool { phase == .retained || isPartial }
+    public init(phase: ThroughputPhase, sample: ThroughputSample? = nil, sessions: Int = 0,
+                generatingSessions: Int = 0, contributingSessions: Int = 0) {
         self.phase = phase; self.sample = sample; self.sessions = sessions
+        self.generatingSessions = generatingSessions; self.contributingSessions = contributingSessions
     }
     public static func resolve(connected: Bool, paused: Bool, turns: [String: String], waiting: Set<String>,
                                samples: [String: ThroughputSample], unavailable: Set<String>, now: Date) -> Self {
         if paused { return .init(phase: .paused) }
         guard connected else { return .init(phase: .disconnected) }
         guard !turns.isEmpty else { return .init(phase: .idle) }
-        guard turns.count == 1, let (session, turn) = turns.first else { return .init(phase: .parallel, sessions: turns.count) }
-        if unavailable.contains(session) { return .init(phase: .unavailable) }
-        let sample = samples[session].flatMap { sample in
-            sample.turn == turn && now.timeIntervalSince(sample.recordedAt) >= -5 && now.timeIntervalSince(sample.recordedAt) <= 60 ? sample : nil
+        func validSample(_ session: String, _ turn: String) -> ThroughputSample? {
+            guard !unavailable.contains(session), let sample = samples[session], sample.turn == turn,
+                  sample.tokensPerSecond.isFinite, sample.tokensPerSecond > 0, sample.tokensPerSecond <= 100_000,
+                  now.timeIntervalSince(sample.recordedAt) >= -5,
+                  now.timeIntervalSince(sample.recordedAt) <= 60 else { return nil }
+            return sample
         }
-        if waiting.contains(session) { return .init(phase: .waiting, sample: sample) }
-        guard let sample else { return .init(phase: .sampling) }
-        return .init(phase: now.timeIntervalSince(sample.recordedAt) <= 3 ? .measured : .retained, sample: sample)
+        if turns.count == 1, let (session, turn) = turns.first, waiting.contains(session) {
+            return .init(phase: .waiting, sample: validSample(session, turn), sessions: 1)
+        }
+        let generating = turns.filter { !waiting.contains($0.key) }
+        let contributions = generating.sorted { $0.key < $1.key }.compactMap { validSample($0.key, $0.value) }
+        guard let oldest = contributions.map(\.recordedAt).min() else {
+            let phase: ThroughputPhase = generating.isEmpty ? .waiting :
+                (generating.keys.allSatisfy { unavailable.contains($0) } ? .unavailable : .sampling)
+            return .init(phase: phase, sessions: turns.count, generatingSessions: generating.count)
+        }
+        // Display-only sum of latest per-response rates. The oldest contributor controls freshness;
+        // the empty aggregate turn is never fed back to a session tracker or persisted.
+        let total = ThroughputSample(tokensPerSecond: contributions.reduce(0) { $0 + $1.tokensPerSecond },
+                                     recordedAt: oldest, turn: turns.count == 1 ? contributions[0].turn : "")
+        return .init(phase: now.timeIntervalSince(oldest) <= 3 ? .measured : .retained, sample: total,
+                     sessions: turns.count, generatingSessions: generating.count, contributingSessions: contributions.count)
     }
     public var rateText: String {
         guard let rate = sample?.tokensPerSecond, rate.isFinite, rate > 0 else { return "—" }

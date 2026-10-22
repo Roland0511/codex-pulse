@@ -272,24 +272,23 @@ struct OverlayView: View {
     private var throughputAccessibility: String {
         let state = throughput.presentation
         let retained = state.sample != nil && (state.phase == .waiting || state.phase == .retained)
-        return tr("tps.title") + " · " + (retained ? tr("tps.lastValue") + " " : "") + state.rateText + " t/s · " +
-            tr("tps." + state.phase.rawValue) + (state.phase == .parallel ? " (\(state.sessions))" : "")
+        return state.readingTitle + " · " + (retained ? tr("tps.lastValue") + " " : "") + state.rateText + " t/s · " +
+            state.readingStatus
     }
     private var throughputDetails: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
-                Text(tr("tps.title")).font(.system(size: 12, weight: .medium))
+                Text(throughput.presentation.readingTitle).font(.system(size: 12, weight: .medium))
                 Spacer(minLength: 4)
                 Text(throughput.presentation.rateText + " t/s")
                     .font(.system(size: 18, weight: .medium, design: .rounded)).monospacedDigit()
             }
             Text(tr("tps.responseUpdates")).font(.system(size: 10)).foregroundStyle(palette.muted)
-            Text(tr("tps." + throughput.presentation.phase.rawValue) +
-                 (throughput.presentation.phase == .parallel ? " (\(throughput.presentation.sessions))" : ""))
+            Text(throughput.presentation.readingStatus)
                 .font(.system(size: 10)).foregroundStyle(palette.muted)
                 .fixedSize(horizontal: false, vertical: true)
             if let date = throughput.presentation.sample?.recordedAt {
-                Text(tr("tps.lastResponse", date.formatted(.dateTime.hour().minute().second().locale(text.locale))))
+                Text(throughput.presentation.readingTimestamp(date.formatted(.dateTime.hour().minute().second().locale(text.locale))))
                     .font(.system(size: 10)).foregroundStyle(palette.muted)
             }
         }
@@ -518,25 +517,28 @@ struct ThroughputInline: View {
     @ObservedObject private var language = LanguageStore.shared
     private var label: String {
         switch presentation.phase {
-        case .measured: return presentation.rateText
-        case .retained: return "~" + presentation.rateText
+        case .measured, .retained: return (presentation.showsApproximation ? "~" : "") + presentation.rateText
         case .waiting: return tr("tps.short.waiting")
         case .sampling: return "···"
-        case .parallel: return tr("tps.short.parallel")
         case .idle: return tr("tps.short.idle")
         default: return "—"
         }
     }
+    private func readout(scale: CGFloat) -> Text {
+        let size = stacked ? DesignTokens.stackedSpeedFontSize : (narrow ? 12.0 : 14.0)
+        let value = Text(label).font(.system(size: size * scale, weight: .medium, design: .rounded))
+        return presentation.phase == .measured || presentation.phase == .retained
+            ? value + Text(" t/s").font(.system(size: 8 * scale)) : value
+    }
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 1) {
-            Text(label).font(.system(size: stacked ? DesignTokens.stackedSpeedFontSize : (narrow ? 12 : 14), weight: .medium, design: .rounded))
-                .monospacedDigit()
-            if presentation.phase == .measured || presentation.phase == .retained {
-                Text("t/s").font(.system(size: 8))
-            }
+        ViewThatFits(in: .horizontal) {
+            readout(scale: 1).fixedSize()
+            readout(scale: 0.85).fixedSize()
+            readout(scale: 0.7).fixedSize()
         }
-        .foregroundStyle(presentation.phase == .measured ? appearance.palette.signal : appearance.palette.muted)
-        .lineLimit(1).minimumScaleFactor(0.8)
+        .monospacedDigit()
+        .foregroundStyle(presentation.phase == .measured && !presentation.showsApproximation ? appearance.palette.signal : appearance.palette.muted)
+        .lineLimit(1)
         .accessibilityIdentifier("throughput.readout")
     }
 }

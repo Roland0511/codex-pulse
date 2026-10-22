@@ -25,10 +25,14 @@ import Testing
         func line(_ type: String, _ payload: [String: Any]) throws -> Data {
             var data = try JSONSerialization.data(withJSONObject: ["type": type, "timestamp": formatter.string(from: date), "payload": payload]); data.append(10); return data
         }
-        var bytes = try line("event_msg", ["type": "task_started", "turn_id": turn])
-        bytes.append(try line("event_msg", ["type": "item_completed", "turn_id": turn,
-            "item": ["id": "item", "type": "Reasoning", "text": "DO NOT KEEP"], "started_at_ms": end - 1000, "completed_at_ms": end]))
-        bytes.append(try line("token_usage_record", ["turn_id": turn, "thread_id": id, "response_id": "response", "usage": ["output_tokens": 82]]))
+        func fixture(_ session: String, output: Int) throws -> Data {
+            var bytes = try line("event_msg", ["type": "task_started", "turn_id": turn])
+            bytes.append(try line("event_msg", ["type": "item_completed", "turn_id": turn,
+                "item": ["id": "item", "type": "Reasoning", "text": "DO NOT KEEP"], "started_at_ms": end - 1000, "completed_at_ms": end]))
+            bytes.append(try line("token_usage_record", ["turn_id": turn, "thread_id": session, "response_id": "response", "usage": ["output_tokens": output]]))
+            return bytes
+        }
+        let bytes = try fixture(id, output: 82)
         let file = root.appendingPathComponent("rollout-fixture-" + id + ".jsonl")
         try bytes.write(to: file, options: .atomic)
         let tps = ThroughputStore(defaults: defaults, root: root), activity = ActivityStore(alive: { _ in true })
@@ -53,12 +57,22 @@ import Testing
         }
         activity.receive(signal(.waiting, tool: "permission"))
         try await wait { tps.presentation.phase == .waiting && tps.presentation.sample != nil }
-        activity.receive(signal(.start, session: "22222222-2222-4222-8222-222222222222"))
-        #expect(tps.presentation.phase == .parallel && tps.presentation.sample == nil && tps.presentation.sessions == 2)
-        activity.receive(signal(.stop, session: "22222222-2222-4222-8222-222222222222"))
-        try await wait { tps.presentation.phase == .waiting }
+        let second = "22222222-2222-4222-8222-222222222222"
+        let secondFile = root.appendingPathComponent("rollout-fixture-" + second + ".jsonl")
+        try fixture(second, output: 61).write(to: secondFile, options: .atomic)
+        activity.receive(signal(.start, session: second))
+        try await wait { tps.presentation.sample?.tokensPerSecond == 61 }
+        #expect(tps.presentation.sessions == 2 && tps.presentation.contributingSessions == 1 && !tps.presentation.isPartial)
         activity.receive(signal(.afterTool, tool: "permission"))
-        try await wait { tps.presentation.sample != nil }
+        try await wait { tps.presentation.sample?.tokensPerSecond == 143 }
+        #expect(tps.presentation.contributingSessions == 2 && !tps.presentation.isPartial)
+        let total = tps.presentation
+        tps.setLayout(.stacked); #expect(tps.presentation == total)
+        tps.setLayout(.horizontal); #expect(tps.presentation == total)
+        try FileManager.default.removeItem(at: secondFile)
+        try await wait { tps.presentation.sample?.tokensPerSecond == 82 && tps.presentation.isPartial }
+        activity.receive(signal(.stop, session: second))
+        try await wait { tps.presentation.sample?.tokensPerSecond == 82 && !tps.presentation.isAggregate }
         tps.setPaused(true); #expect(tps.presentation.phase == .paused && tps.presentation.sample == nil)
         tps.setPaused(false); try await wait { tps.presentation.sample != nil }
         tps.setHidden(true); #expect(tps.presentation.phase == .paused)
@@ -170,6 +184,25 @@ import Testing
         defer { invalid.stop() }
         #expect(invalid.layout == .horizontal)
     }
+    @Test func totalCopyAndPartialCoverageFollowTheSelectedLanguage() {
+        let old = LanguageStore.shared.selection
+        defer { LanguageStore.shared.setSelection(old) }
+        let total = ThroughputPresentation(phase: .measured,
+            sample: .init(tokensPerSecond: 143, recordedAt: Date(), turn: ""),
+            sessions: 3, generatingSessions: 2, contributingSessions: 2)
+        let partial = ThroughputPresentation(phase: .measured, sample: total.sample,
+            sessions: 3, generatingSessions: 2, contributingSessions: 1)
+        LanguageStore.shared.setSelection(.simplifiedChinese)
+        #expect(total.readingTitle == "总 TPS")
+        #expect(total.readingStatus.contains("汇总 2 / 2") && total.readingStatus.contains("1 路等待"))
+        #expect(partial.readingStatus.contains("部分合计") && partial.showsApproximation)
+        #expect(total.readingTimestamp("12:34:56") == "最早计入响应 12:34:56")
+        LanguageStore.shared.setSelection(.english)
+        #expect(total.readingTitle == "Total TPS")
+        #expect(total.readingStatus.contains("2 / 2") && total.readingStatus.contains("1 waiting"))
+        #expect(partial.readingStatus.contains("Partial sum"))
+        #expect(total.readingTimestamp("12:34:56") == "Oldest included response 12:34:56")
+    }
     @Test func toggleResizesActualDockedPanelAndKeepsItsAnchor() async throws {
         _ = NSApplication.shared
         let suite = "pulse-tps-geometry-" + UUID().uuidString
@@ -212,13 +245,24 @@ import Testing
             for theme in ["light", "dark"] {
                 AppearanceStore.shared.setSelection(theme)
                 let sample = ThroughputSample(tokensPerSecond: 82, recordedAt: Date(), turn: "synthetic")
-                let previews = ThroughputPhase.allCasesForPreview.map { phase in
-                    ThroughputPresentation(phase: phase, sample: [.measured, .retained, .waiting].contains(phase) ? sample : nil, sessions: phase == .parallel ? 2 : 1)
+                var previews = ThroughputPhase.allCasesForPreview.map { phase in
+                    ThroughputPresentation(phase: phase, sample: [.measured, .retained, .waiting].contains(phase) ? sample : nil, sessions: 1)
                 }
+                for (phase, count) in [(ThroughputPhase.measured, 2), (.retained, 2), (.measured, 1)] {
+                    previews.append(.init(phase: phase,
+                        sample: .init(tokensPerSecond: count == 2 ? 143 : 82, recordedAt: Date(), turn: ""),
+                        sessions: 3, generatingSessions: 2, contributingSessions: count))
+                }
+                for rate in [9_999.0, 100_000.0] {
+                    previews.append(.init(phase: .retained,
+                        sample: .init(tokensPerSecond: rate, recordedAt: Date(), turn: ""),
+                        sessions: 2, generatingSessions: 2, contributingSessions: 2))
+                }
+                let renderedPreviews = previews
                 let host = NSHostingView(rootView: VStack(alignment: .leading, spacing: 10) {
-                    ForEach(Array(previews.enumerated()), id: \.offset) { _, preview in
+                    ForEach(Array(renderedPreviews.enumerated()), id: \.offset) { _, preview in
                         HStack(spacing: 16) {
-                            Text(preview.phase.rawValue).font(.system(size: 12)).frame(width: 90, alignment: .leading)
+                            Text(preview.isAggregate ? preview.readingTitle : preview.phase.rawValue).font(.system(size: 12)).frame(width: 90, alignment: .leading)
                             HStack(spacing: 5) {
                                 Text("60.1k").font(.system(size: 12, weight: .medium, design: .rounded))
                                 Rectangle().fill(Color.secondary.opacity(0.3)).frame(width: 1, height: 14)
@@ -230,6 +274,9 @@ import Testing
                                 ThroughputInline(presentation: preview, narrow: true, stacked: true).frame(width: 38, height: 10)
                             }.frame(width: 54, height: 36)
                                 .background(AppearanceStore.shared.palette.surface, in: RoundedRectangle(cornerRadius: 10))
+                        }
+                        if preview.isAggregate {
+                            Text(preview.readingStatus).font(.system(size: 10)).fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }.padding(20).frame(width: 390).background(AppearanceStore.shared.palette.track)
@@ -244,5 +291,5 @@ import Testing
     }
 }
 private extension ThroughputPhase {
-    static var allCasesForPreview: [Self] { [.measured, .retained, .sampling, .waiting, .parallel, .idle, .disconnected, .unavailable, .paused] }
+    static var allCasesForPreview: [Self] { [.measured, .retained, .sampling, .waiting, .idle, .disconnected, .unavailable, .paused] }
 }

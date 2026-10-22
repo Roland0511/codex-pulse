@@ -73,7 +73,7 @@ private func receive(_ tracker: inout ThroughputTracker, _ data: Data) throws {
         #expect(tracker.sample?.tokensPerSecond == 50)
         try receive(&tracker, count(10)); #expect(tracker.sample == nil)
     }
-    @Test func sampleStateNeverMixesParallelOrOldTurnsOrStaleAndWaiting() {
+    @Test func sampleStateRejectsOldTurnsStaleAndDisconnected() {
         let now = Date(), sample = ThroughputSample(tokensPerSecond: 82, recordedAt: now, turn: "t")
         func state(_ turns: [String: String] = ["s": "t"], connected: Bool = true, paused: Bool = false,
                    waiting: Set<String> = [], unavailable: Set<String> = [], date: Date? = nil) -> ThroughputPresentation {
@@ -84,13 +84,48 @@ private func receive(_ tracker: inout ThroughputTracker, _ data: Data) throws {
         #expect(state(date: now.addingTimeInterval(4)).phase == .retained)
         #expect(state(date: now.addingTimeInterval(61)).sample == nil)
         #expect(state(["s": "next"]).phase == .sampling)
-        #expect(state(["s": "t", "other": "u"]).phase == .parallel)
-        #expect(state(["s": "t", "other": "u"]).sample == nil)
+        #expect(state(["s": "t", "other": "u"]).sample?.tokensPerSecond == 82)
+        #expect(state(["s": "t", "other": "u"]).isPartial)
         #expect(state(waiting: ["s"]).phase == .waiting)
         #expect(state(unavailable: ["s"]).sample == nil)
         #expect(state(connected: false).phase == .disconnected)
         #expect(state(paused: true).phase == .paused)
         #expect(state([:]).phase == .idle)
+    }
+    @Test func parallelTotalExcludesWaitingInvalidOldAndEndedSessions() {
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        let a = ThroughputSample(tokensPerSecond: 82, recordedAt: now.addingTimeInterval(-4), turn: "a")
+        let b = ThroughputSample(tokensPerSecond: 61, recordedAt: now, turn: "b")
+        func state(turns: [String: String] = ["s1": "a", "s2": "b"], waiting: Set<String> = [],
+                   samples: [String: ThroughputSample]? = nil, unavailable: Set<String> = [], date: Date? = nil) -> ThroughputPresentation {
+            .resolve(connected: true, paused: false, turns: turns, waiting: waiting,
+                     samples: samples ?? ["s1": a, "s2": b], unavailable: unavailable, now: date ?? now)
+        }
+        let total = state()
+        #expect(total.sample?.tokensPerSecond == 143 && total.isAggregate && !total.isPartial)
+        #expect(total.contributingSessions == 2 && total.generatingSessions == 2)
+        #expect(total.phase == .retained && total.sample?.recordedAt == a.recordedAt)
+        let waiting = state(waiting: ["s1"])
+        #expect(waiting.sample?.tokensPerSecond == 61 && waiting.phase == .measured && !waiting.isPartial)
+        #expect(waiting.generatingSessions == 1 && waiting.sessions == 2)
+        #expect(state(waiting: ["s1", "s2"]).phase == .waiting)
+        #expect(state(waiting: ["s1", "s2"]).sample == nil)
+        #expect(state(turns: ["s2": "b"]).sample?.tokensPerSecond == 61)
+        #expect(!state(turns: ["s2": "b"]).isAggregate)
+        let stale = state(date: now.addingTimeInterval(57))
+        #expect(stale.sample?.tokensPerSecond == 61 && stale.isPartial && stale.showsApproximation)
+        #expect(state(date: now.addingTimeInterval(61)).sample == nil)
+        #expect(state(turns: ["s1": "next", "s2": "b"]).sample?.tokensPerSecond == 61)
+        #expect(state(unavailable: ["s1"]).sample?.tokensPerSecond == 61)
+        #expect(state(unavailable: ["s1", "s2"]).phase == .unavailable)
+        #expect(state(samples: [:]).phase == .sampling)
+        for invalid in [Double.nan, .infinity, -1, 0, 100_001] {
+            let bad = ThroughputSample(tokensPerSecond: invalid, recordedAt: now, turn: "a")
+            #expect(state(samples: ["s1": bad, "s2": b]).sample?.tokensPerSecond == 61)
+        }
+        let future = ThroughputSample(tokensPerSecond: 99, recordedAt: now.addingTimeInterval(6), turn: "a")
+        #expect(state(samples: ["s1": future, "s2": b]).sample?.tokensPerSecond == 61)
+        #expect(state(turns: [:]).sample == nil)
     }
     @Test func missingResponseIdentityCannotLeakWindowsIntoAnotherResponse() throws {
         var tracker = ThroughputTracker()
