@@ -630,3 +630,12 @@ DMG 外层追加核验中，沙箱内 codesign / stapler 曾返回签名或读�
 - 汇总回归覆盖 82 + 61 = 143、许可等待排除 / 恢复、旧轮次 / 过期 / 未来 / 非法值排除、最早贡献时间、部分合计与全部不可用；真实异步 Store 集成使用两个合成文件，验证第二会话即时索引、加入 / 退出、文件删除、布局切换不改数值，以及暂停 / 隐藏 / 断线。不是启动两个真实推理会话。
 - 中英 × 浅深色原生组合图覆盖两种布局、8 种基础状态、完整 / 保留 / 部分合计与大数值。首轮发现横向 `~143` 被截断；改为数值和单位共用 Text，并用 ViewThatFits 选择完整排版，最终组合图确认 `~143`、`~10.0k`、`~100k` 及单位完整显示（104 个布局 / 状态组合）。证据位于忽略目录 `private-evidence/tps-total/`，不以图片证明拖动、多屏或休眠通过。
 - Python 32 项报告通过、5 项环境 / 平台测试跳过；参数 / 本地化生成漂移、`git diff --check` 和 Premium strict audit 通过。DESIGN lint 0 error、1 条既有无 YAML 格式提示。arm64 本地 Release / ad-hoc 构建通过，正式发布器会重新运行回归、Universal 构建、公证与公开包验证；实际结果完成后追加。
+
+### v0.6.1 正式发布与内置更新实测追加
+
+- [PR #17](https://github.com/Roland0511/codex-pulse/pull/17) 已合并；发布源码 `41ee76405556399f24cd4432b8ba89fca817f8c9` 的 PR / main CI 均通过，main Swift 回归报告 171 项通过（含环境默认跳过项）。正式发布器重新运行回归、Universal 构建、Developer ID 签名与应用 / DMG 两次公证，最终均为 Accepted。签名 tag、附票、Gatekeeper、最终容器内应用及 Sparkle 签名独立核验通过。
+- 中途 Git 签名程序失败，使用系统 ssh-keygen 经原 1Password SSH 代理和同一签名密钥完成，并验证签名；覆盖仅作用于本次命令环境，未修改全局 Git 配置。公证首次读取配置失败，用户本机解锁后相同配置重新可用，按保留状态恢复。未索取、导出或更换密码 / 私钥，不将配置失败推断为已删除凭据。
+- [v0.6.1 / build 19](https://github.com/Roland0511/codex-pulse/releases/tag/v0.6.1) 四项正式附件和 Latest feed 已公开，匿名重新下载与本地已批准文件逐字节相同，`publish-state.json` 为 `complete=true`；安装前再次下载公开 ZIP 并通过完整签名、公证、双架构和摘要核验。
+- 真实桌面：旧正式版设置显示 0.6.0；备份应用和偏好后，点击「检查更新」得到 0.6.1 可用，点击「安装更新」完成下载，再点击「安装并重启应用」。重启后设置显示 0.6.1、TPS 开启、原横向布局和 1 / 2 位精度、工作状态「已启用，连接就绪」；再次检查显示 0.6.1 已是最新版。
+- 安装后主程序 / helper / Info.plist 与已验证公开包摘要一致，严格签名、附票、Gatekeeper 及正式安装路径单实例通过。业务偏好 JSON 语义一致，只有 `NSWindow Frame SUUpdateAlert2` 和 `SULastCheckTime` 操作元数据变化；hooks 与已安装 helper 摘要不变。旧应用和偏好位于忽略目录 `local-data/release-0.6.1/install-backup-20261022-190508/`，本机验证记录位于 `private-evidence/tps-total/`。
+- 本轮实测内置更新的下载、安装和重启，不宣称无人值守定时更新或真实双会话推理；TPS 汇总仍以明确的合成文件 / 原生渲染回归验收。没有新增多屏、拖动、休眠、完整 VoiceOver 或 Intel 实机结论。

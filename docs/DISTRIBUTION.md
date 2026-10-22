@@ -1,6 +1,17 @@
 # macOS 手动分发
 
-2026-10-22 当前公开分发：[v0.6.0 / build 18](https://github.com/Roland0511/codex-pulse/releases/tag/v0.6.0)。新增逐响应 TPS、可选横向 / 上下小胶囊布局，以及分别可调的点数小数位。应用与 DMG 均获 Apple Accepted，公开附件和 Latest 更新清单核验通过，本机已从公开 ZIP 更新并启动。历史交付记录保留如下。
+2026-10-22 当前公开分发：[v0.6.1 / build 19](https://github.com/Roland0511/codex-pulse/releases/tag/v0.6.1)。多个活动对话显示总 TPS，详情注明贡献 / 生成中路数、许可等待与部分合计。应用与 DMG 均获 Apple Accepted，公开附件和 Latest 更新清单核验通过，本机已通过内置更新从 0.6.0 升级并重启。历史交付记录保留如下。
+
+## v0.6.1 / build 19 正式发布（2026-10-22）
+
+- [PR #17](https://github.com/Roland0511/codex-pulse/pull/17) 合并，干净发布源码 `41ee76405556399f24cd4432b8ba89fca817f8c9`；[PR CI](https://github.com/Roland0511/codex-pulse/actions/runs/39756976798) 与 [main CI](https://github.com/Roland0511/codex-pulse/actions/runs/39757418196) 均通过。签名 tag `v0.6.1` 指向该源码，后续仅更新交付记录。
+- 官方发布器完成回归、Universal 构建、Developer ID 全架构签名、Hardened Runtime 与时间戳。应用 / DMG 两次 Apple 公证均为 Accepted，附票、Gatekeeper、最终 ZIP / DMG 内应用及 Sparkle 签名独立验证通过。中途公证配置读取失败，用户本机解锁后相同别名恢复可用，按原源码和恢复记录完成，没有更换凭据或重建版本。
+- 公开附件仅为 DMG、ZIP、`appcast.xml`、`SHA256SUMS.txt`；匿名下载及 Latest feed 与已批准产物逐字节一致，发布状态 `complete=true`。产物保留于忽略目录 `dist/releases/v0.6.1-build19/`。
+- DMG SHA-256：`0491079a5e69d26b4ff0ba475fb9d274b615de0cf1346c422aeb3d955ce613de`。
+- ZIP SHA-256：`3bedee4fc03b5065c6a666bfb6a28c486d9956163f0b37371216a105deef4583`。
+- 发布完成后再次匿名下载 ZIP 并独立验证。将旧正式应用 0.6.0 / build 18 和偏好备份至 `local-data/release-0.6.1/install-backup-20261022-190508/`，再通过原生 Sparkle「检查更新 → 安装更新 → 安装并重启应用」完成本机升级；未手动替换安装目录。
+- 新安装版本 0.6.1 / build 19，主程序 / helper / Info.plist 摘要与公开包一致，严格签名、附票、Gatekeeper 和正式路径单实例核验通过。设置显示版本、原布局与 1 / 2 位精度、连接就绪；再次检查更新确认已是最新版。
+- 业务偏好语义不变，仅 Sparkle 更新窗口位置与检查时间改变；hooks 和已安装 helper 摘要保持。此次验证实际下载、安装及重启，不扩展为无人值守定时更新、真实双会话推理、多屏、休眠或 Intel 实机验证。技术、渲染和真实安装交互分别见 [验证记录](VERIFICATION.md)。
 
 ## v0.6.0 / build 18 正式发布（2026-10-22）
 
