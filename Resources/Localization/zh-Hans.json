@@ -166,7 +166,7 @@
   "tps.disconnected": "工作状态未连接",
   "tps.idle": "空闲 · 无活动会话",
   "tps.waiting": "等待许可",
-  "tps.sampling": "等待完整响应样本",
+  "tps.sampling": "等待新响应",
   "tps.measured": "最近响应的生成速度",
   "tps.retained": "保留上次响应速度 · 当前未产生新样本",
   "tps.unavailable": "本地计时数据不可用",

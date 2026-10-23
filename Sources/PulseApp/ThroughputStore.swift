@@ -31,6 +31,8 @@ enum ThroughputLayout: String, CaseIterable {
     private var paused = false
     private var hidden = false
     private var generation = 0
+    private var samples: [String: ThroughputSample] = [:]
+    private var unavailable: Set<String> = []
     init(defaults: UserDefaults? = nil, root: URL? = nil, enabled: Bool? = nil) {
         let storage = defaults ?? LocalDefaults.store
         self.defaults = storage
@@ -60,8 +62,9 @@ enum ThroughputLayout: String, CaseIterable {
         generation += 1; let epoch = generation
         poll?.cancel(); poll = nil
         presentation = ThroughputPresentation.resolve(connected: context.connected, paused: paused || hidden || !enabled,
-            turns: context.turns, waiting: context.waiting, samples: [:], unavailable: [], now: Date())
+            turns: context.turns, waiting: context.waiting, samples: samples, unavailable: unavailable, now: Date())
         guard enabled, !paused, !hidden, context.connected, !context.turns.isEmpty else {
+            samples = [:]; unavailable = []
             let reader = reader
             Task { await reader.reset() }
             return
@@ -69,8 +72,9 @@ enum ThroughputLayout: String, CaseIterable {
         let context = context, reader = reader
         poll = Task { [weak self] in
             while !Task.isCancelled {
-                let result = await reader.read(sessions: Set(context.turns.keys))
+                let result = await reader.read(turns: context.turns)
                 guard !Task.isCancelled, let self, self.generation == epoch else { return }
+                self.samples = result.samples; self.unavailable = result.unavailable
                 let next = ThroughputPresentation.resolve(connected: context.connected, paused: false,
                     turns: context.turns, waiting: context.waiting, samples: result.samples,
                     unavailable: result.unavailable, now: Date())
@@ -82,6 +86,7 @@ enum ThroughputLayout: String, CaseIterable {
     func stop() {
         generation += 1; poll?.cancel(); poll = nil; subscription?.cancel(); subscription = nil
         presentation = .init(phase: .disconnected)
+        samples = [:]; unavailable = []
         let reader = reader; Task { await reader.reset() }
     }
 }

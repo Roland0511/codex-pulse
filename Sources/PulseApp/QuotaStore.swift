@@ -112,10 +112,11 @@ import UserNotifications
             var windows = [QuotaWindow(bucketID: "demo", slot: "primary", usedPercent: demoScenario == "low" || demoScenario == "working-low" ? 93 : 3, durationMinutes: 10080,
                                        resetsAt: date.addingTimeInterval(6 * 86400))]
             if demoScenario == "long" {
-                windows = (0..<8).map { index in
-                    QuotaWindow(bucketID: "demo-\(index)", bucketName: tr("demo.longBucket", index + 1),
+                windows = (0..<8).map { (index: Int) -> QuotaWindow in
+                    let reset = date.addingTimeInterval(Double(index + 1) * 90_000)
+                    return QuotaWindow(bucketID: "demo-\(index)", bucketName: tr("demo.longBucket", index + 1),
                                 slot: "primary", usedPercent: Double(index * 9), durationMinutes: (index + 1) * 120,
-                                resetsAt: date.addingTimeInterval(Double(index + 1) * 90000))
+                                resetsAt: reset)
                 }
             }
             if demoScenario == "empty" { windows = [] }

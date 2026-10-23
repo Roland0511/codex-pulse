@@ -166,7 +166,7 @@
   "tps.disconnected": "Activity status disconnected",
   "tps.idle": "Idle · no active sessions",
   "tps.waiting": "Waiting for permission",
-  "tps.sampling": "Waiting for a complete response sample",
+  "tps.sampling": "Waiting for a new response",
   "tps.measured": "Generation speed of the latest response",
   "tps.retained": "Last response retained · no new sample",
   "tps.unavailable": "Local timing data unavailable",

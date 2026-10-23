@@ -10,6 +10,7 @@ public actor ThroughputReader {
         public init() {}
     }
     private struct Cursor {
+        var expectedTurn: String?
         var device: Int32 = 0
         var inode: UInt64 = 0
         var offset: UInt64 = 0
@@ -27,6 +28,12 @@ public actor ThroughputReader {
     public init(root: URL) { self.root = root }
     public func reset() { cursors = [:]; paths = [:]; lastIndex = .distantPast; indexedSessions = [] }
     public func read(sessions: Set<String>, now: Date = Date()) -> Result {
+        read(sessions: sessions, trustedTurns: [:], now: now)
+    }
+    public func read(turns: [String: String], now: Date = Date()) -> Result {
+        read(sessions: Set(turns.keys), trustedTurns: turns, now: now)
+    }
+    private func read(sessions: Set<String>, trustedTurns: [String: String], now: Date) -> Result {
         cursors = cursors.filter { sessions.contains($0.key) }
         paths = paths.filter { sessions.contains($0.key) }
         indexedSessions.formIntersection(sessions)
@@ -38,7 +45,9 @@ public actor ThroughputReader {
         for session in sessions {
             guard let path = paths[session] else { result.unavailable.insert(session); continue }
             do {
-                var cursor = cursors[session] ?? Cursor()
+                let expected = trustedTurns[session]
+                var cursor = cursors[session] ?? Cursor(expectedTurn: expected, tracker: .init(expectedTurn: expected))
+                if cursor.expectedTurn != expected { cursor = Cursor(expectedTurn: expected, tracker: .init(expectedTurn: expected)) }
                 try read(path, session: session, cursor: &cursor)
                 cursors[session] = cursor
                 if let sample = cursor.tracker.sample { result.samples[session] = sample }
@@ -90,7 +99,9 @@ public actor ThroughputReader {
         }
         if cursor.inode != info.st_ino || cursor.device != info.st_dev || size < cursor.offset || checkpointChanged ||
             (cursor.offset >= 128 && cursor.prefix != digest) {
-            cursor = Cursor(); cursor.inode = info.st_ino; cursor.device = info.st_dev
+            let expected = cursor.expectedTurn
+            cursor = Cursor(expectedTurn: expected, tracker: .init(expectedTurn: expected))
+            cursor.inode = info.st_ino; cursor.device = info.st_dev
             cursor.offset = size > 4_194_304 ? size - 4_194_304 : 0
             cursor.skippingLine = cursor.offset > 0
         }
