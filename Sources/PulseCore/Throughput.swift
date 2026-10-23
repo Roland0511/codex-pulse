@@ -27,6 +27,7 @@ public struct ThroughputSample: Equatable, Sendable {
 /// Missing boundaries or timing invalidate that sample, never guess zero or bridge tool waits.
 public struct ThroughputTracker: Sendable {
     public private(set) var sample: ThroughputSample?
+    private let expectedTurn: String?
     private var turn: String?
     private var intervals: [(Int64, Int64)] = []
     private var items: Set<String> = []
@@ -35,20 +36,35 @@ public struct ThroughputTracker: Sendable {
     private var directCarrier = false
     private var legacyBaseline: Int64?
     private var legacyOutput: Int64?
-    public init() {}
-    public mutating func reset() { self = Self() }
+    private var ended = false
+    public init(expectedTurn: String? = nil) { self.expectedTurn = expectedTurn }
+    public mutating func reset() { self = Self(expectedTurn: expectedTurn) }
     public mutating func receive(_ event: ThroughputEvent, session: String) {
         let f = event.fields
         if let id = f["payload.thread_id"], ActivitySignal.hash(id) != session { return }
         let type = f["type"], kind = f["payload.type"]
         let stamp = f["timestamp"].flatMap(Self.date) ?? .distantPast
+        if type == "event_msg", kind == "turn_aborted", let expectedTurn,
+           f["payload.turn_id"].map(ActivitySignal.hash) == expectedTurn {
+            ended = true; valid = false; intervals = []; sample = nil; return
+        }
         // A file's ordering, rather than local arrival time, defines response boundaries.
         if type == "event_msg", kind == "task_started", let id = f["payload.turn_id"] {
             let next = ActivitySignal.hash(id)
+            guard expectedTurn == nil || expectedTurn == next else { return }
             guard turn != next else { return }
             turn = next; intervals = []; items = []; responses = []
-            valid = true; directCarrier = false; legacyBaseline = legacyOutput; sample = nil
+            valid = true; ended = false; directCarrier = false; legacyBaseline = legacyOutput; sample = nil
             return
+        }
+        // A trusted active turn can rejoin a bounded tail without its task_started record.
+        // The first identified response is only a boundary: discard its partial windows/usage.
+        // Only subsequent complete model windows may contribute to the next response.
+        if turn == nil, !ended, let expectedTurn, type == "token_usage_record",
+           let id = f["payload.turn_id"], ActivitySignal.hash(id) == expectedTurn,
+           let response = f["payload.response_id"], !response.isEmpty {
+            turn = expectedTurn; valid = true; directCarrier = true
+            intervals = []; responses = [response]; return
         }
         if type == "event_msg", kind == "token_count" {
             guard let total = Self.count(f["payload.info.total_token_usage.output_tokens"]) else { return }
@@ -56,7 +72,7 @@ public struct ThroughputTracker: Sendable {
             guard !directCarrier else { return }
             // Cumulative deltas deduplicate the legacy carrier. Never deduplicate by token values.
             guard let baseline = legacyBaseline, total >= baseline else {
-                legacyBaseline = total; intervals = []; sample = nil; return
+                legacyBaseline = total; intervals = []; valid = turn != nil && !ended; return
             }
             guard total > baseline else { return }
             publish(output: total - baseline, at: stamp)
@@ -65,23 +81,23 @@ public struct ThroughputTracker: Sendable {
         }
         if type == "event_msg", kind == "item_completed",
            ["Reasoning", "AgentMessage"].contains(f["payload.item.type"] ?? ""), f["payload.turn_id"] == nil {
-            valid = false; intervals = []; sample = nil; return
+            valid = false; intervals = []; return
         }
         guard let current = turn, let id = f["payload.turn_id"], ActivitySignal.hash(id) == current else { return }
         if type == "event_msg", kind == "item_completed" {
             guard ["Reasoning", "AgentMessage"].contains(f["payload.item.type"] ?? "") else { return }
-            guard let id = f["payload.item.id"] else { valid = false; sample = nil; return }
+            guard let id = f["payload.item.id"] else { valid = false; return }
             guard !items.contains(id) else { return }
             guard items.count < 2048 else { valid = false; sample = nil; return }
             items.insert(id)
             guard let start = Self.count(f["payload.started_at_ms"]),
                   let end = Self.count(f["payload.completed_at_ms"]), end > start, end - start <= 600_000,
                   abs(Double(end) / 1000 - stamp.timeIntervalSince1970) < 60 else {
-                valid = false; sample = nil; return
+                valid = false; return
             }
             intervals.append((start, end))
         } else if type == "token_usage_record" {
-            guard let response = f["payload.response_id"], !response.isEmpty else { intervals = []; sample = nil; return }
+            guard let response = f["payload.response_id"], !response.isEmpty else { intervals = []; valid = !ended; return }
             guard !responses.contains(response) else { return }
             guard responses.count < 2048 else { valid = false; sample = nil; return }
             responses.insert(response)
@@ -89,23 +105,24 @@ public struct ThroughputTracker: Sendable {
             if !directCarrier { directCarrier = true; sample = nil }
             guard let output = Self.count(f["payload.usage.output_tokens"]),
                   Self.count(f["payload.usage.reasoning_output_tokens"]).map({ $0 <= output }) ?? true else {
-                intervals = []; sample = nil; return
+                intervals = []; valid = !ended; return
             }
             publish(output: output, at: stamp)
         } else if type == "event_msg", kind == "turn_aborted" {
-            valid = false; intervals = []; sample = nil
+            valid = false; ended = true; intervals = []; sample = nil
         }
     }
     private mutating func publish(output: Int64, at date: Date) {
-        defer { intervals = [] }
-        guard valid, let turn, output > 0, !intervals.isEmpty else { sample = nil; return }
+        defer { intervals = []; valid = turn != nil && !ended }
+        // An unmeasurable response cannot overwrite the last known, explicitly historical rate.
+        guard valid, let turn, !ended, output > 0, !intervals.isEmpty else { return }
         var milliseconds: Int64 = 0, lastEnd: Int64 = 0
         for (start, end) in intervals.sorted(by: { $0.0 < $1.0 }) {
             milliseconds += max(0, end - max(start, lastEnd)); lastEnd = max(lastEnd, end)
         }
         let rate = Double(output) * 1000 / Double(milliseconds)
         guard Double(lastEnd) / 1000 <= date.timeIntervalSince1970 + 1, milliseconds >= 50, rate.isFinite, rate > 0, rate <= 100_000, date != .distantPast else {
-            sample = nil; return
+            return
         }
         sample = ThroughputSample(tokensPerSecond: rate, recordedAt: date, turn: turn)
     }
@@ -143,8 +160,7 @@ public struct ThroughputPresentation: Equatable, Sendable {
         func validSample(_ session: String, _ turn: String) -> ThroughputSample? {
             guard !unavailable.contains(session), let sample = samples[session], sample.turn == turn,
                   sample.tokensPerSecond.isFinite, sample.tokensPerSecond > 0, sample.tokensPerSecond <= 100_000,
-                  now.timeIntervalSince(sample.recordedAt) >= -5,
-                  now.timeIntervalSince(sample.recordedAt) <= 60 else { return nil }
+                  now.timeIntervalSince(sample.recordedAt) >= -5 else { return nil }
             return sample
         }
         if turns.count == 1, let (session, turn) = turns.first, waiting.contains(session) {

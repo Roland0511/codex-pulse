@@ -71,7 +71,7 @@ private func receive(_ tracker: inout ThroughputTracker, _ data: Data) throws {
         #expect(tracker.sample?.tokensPerSecond == 100)
         try receive(&tracker, item("b", 2000, 4000)); try receive(&tracker, count(1100)); try receive(&tracker, count(1200))
         #expect(tracker.sample?.tokensPerSecond == 50)
-        try receive(&tracker, count(10)); #expect(tracker.sample == nil)
+        try receive(&tracker, count(10)); #expect(tracker.sample?.tokensPerSecond == 50)
     }
     @Test func sampleStateRejectsOldTurnsStaleAndDisconnected() {
         let now = Date(), sample = ThroughputSample(tokensPerSecond: 82, recordedAt: now, turn: "t")
@@ -82,7 +82,8 @@ private func receive(_ tracker: inout ThroughputTracker, _ data: Data) throws {
         }
         #expect(state().phase == .measured)
         #expect(state(date: now.addingTimeInterval(4)).phase == .retained)
-        #expect(state(date: now.addingTimeInterval(61)).sample == nil)
+        #expect(state(date: now.addingTimeInterval(61)).phase == .retained)
+        #expect(state(date: now.addingTimeInterval(3600)).sample == sample)
         #expect(state(["s": "next"]).phase == .sampling)
         #expect(state(["s": "t", "other": "u"]).sample?.tokensPerSecond == 82)
         #expect(state(["s": "t", "other": "u"]).isPartial)
@@ -113,8 +114,8 @@ private func receive(_ tracker: inout ThroughputTracker, _ data: Data) throws {
         #expect(state(turns: ["s2": "b"]).sample?.tokensPerSecond == 61)
         #expect(!state(turns: ["s2": "b"]).isAggregate)
         let stale = state(date: now.addingTimeInterval(57))
-        #expect(stale.sample?.tokensPerSecond == 61 && stale.isPartial && stale.showsApproximation)
-        #expect(state(date: now.addingTimeInterval(61)).sample == nil)
+        #expect(stale.sample?.tokensPerSecond == 143 && !stale.isPartial && stale.showsApproximation)
+        #expect(state(date: now.addingTimeInterval(61)).sample?.tokensPerSecond == 143)
         #expect(state(turns: ["s1": "next", "s2": "b"]).sample?.tokensPerSecond == 61)
         #expect(state(unavailable: ["s1"]).sample?.tokensPerSecond == 61)
         #expect(state(unavailable: ["s1", "s2"]).phase == .unavailable)
@@ -134,6 +135,61 @@ private func receive(_ tracker: inout ThroughputTracker, _ data: Data) throws {
         #expect(tracker.sample == nil)
         try receive(&tracker, item("b", 5000, 6000)); try receive(&tracker, usage("valid", 100))
         #expect(tracker.sample?.tokensPerSecond == 100)
+    }
+    @Test func unmeasurableResponsesRetainHistoryAndBadTimingRecoversAtNextBoundary() throws {
+        var tracker = ThroughputTracker()
+        try receive(&tracker, line("task_started")); try receive(&tracker, item("a", 0, 1000)); try receive(&tracker, usage("a"))
+        let original = try #require(tracker.sample)
+        try receive(&tracker, usage("no-model-items"))
+        #expect(tracker.sample == original)
+        try receive(&tracker, line("item_completed", ["item": ["id": "bad", "type": "Reasoning"]]))
+        try receive(&tracker, item("same-response", 2000, 3000)); try receive(&tracker, usage("bad-timing", 900))
+        #expect(tracker.sample == original)
+        try receive(&tracker, item("recovered", 4000, 6000)); try receive(&tracker, usage("recovered", 300))
+        #expect(tracker.sample?.tokensPerSecond == 150)
+        try receive(&tracker, line("", ["response_id": "invalid-count", "usage": ["output_tokens": true]], type: "token_usage_record"))
+        #expect(tracker.sample?.tokensPerSecond == 150)
+        try receive(&tracker, item("after-invalid-count", 7000, 8000)); try receive(&tracker, usage("after-invalid-count", 250))
+        #expect(tracker.sample?.tokensPerSecond == 250)
+        try receive(&tracker, line("turn_aborted")); #expect(tracker.sample == nil)
+        try receive(&tracker, item("after-abort", 8000, 9000)); try receive(&tracker, usage("after-abort"))
+        #expect(tracker.sample == nil)
+    }
+    @Test func trustedTurnRecoveryDiscardsPartialResponseAndRejectsForeignBoundaries() throws {
+        var tracker = ThroughputTracker(expectedTurn: ActivitySignal.hash("turn"))
+        try receive(&tracker, line("task_started", ["turn_id": "foreign"]))
+        try receive(&tracker, item("partial", 0, 1000))
+        try receive(&tracker, line("", ["turn_id": "foreign", "response_id": "foreign", "usage": ["output_tokens": 100]], type: "token_usage_record"))
+        try receive(&tracker, usage("boundary", 9999)); #expect(tracker.sample == nil)
+        try receive(&tracker, item("complete", 2000, 4000))
+        try receive(&tracker, usage("boundary", 9999)); #expect(tracker.sample == nil)
+        try receive(&tracker, usage("complete", 200)); #expect(tracker.sample?.tokensPerSecond == 100)
+        tracker.reset()
+        try receive(&tracker, usage("new-boundary")); #expect(tracker.sample == nil)
+        try receive(&tracker, item("after-reset", 5000, 6000)); try receive(&tracker, usage("after-reset", 150))
+        #expect(tracker.sample?.tokensPerSecond == 150)
+        tracker.reset()
+        try receive(&tracker, line("turn_aborted")); try receive(&tracker, usage("aborted-boundary"))
+        try receive(&tracker, item("aborted", 7000, 8000)); try receive(&tracker, usage("aborted"))
+        #expect(tracker.sample == nil)
+    }
+    @Test func boundedTailRecoversTrustedTurnWithoutWaitingForAnotherUserPrompt() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("pulse-tps-recovery-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("rollout-tail-" + sessionID + ".jsonl")
+        var bytes = try line("task_started")
+        bytes.append(Data(("{\"type\":\"response_item\",\"payload\":\"" + String(repeating: "x", count: 4_300_000) + "\"}\n").utf8))
+        bytes.append(try item("partial", 0, 1000)); bytes.append(try usage("boundary", 9999))
+        try bytes.write(to: file)
+        let reader = ThroughputReader(root: root), turns = [sessionHash: ActivitySignal.hash("turn")]
+        for _ in 0..<5 { let result = await reader.read(turns: turns); #expect(result.samples.isEmpty && result.unavailable.isEmpty) }
+        let handle = try FileHandle(forWritingTo: file); try handle.seekToEnd()
+        try handle.write(contentsOf: item("complete", 5000, 7000)); try handle.write(contentsOf: usage("complete", 300)); try handle.close()
+        let recovered = await reader.read(turns: turns)
+        #expect(recovered.samples[sessionHash]?.tokensPerSecond == 150)
+        let changedTurn = await reader.read(turns: [sessionHash: ActivitySignal.hash("next-turn")])
+        #expect(changedTurn.samples.isEmpty)
     }
     @Test func unsafeTimingAndSamplesNeverInventZeroOrInfiniteSpeed() throws {
         for (start, end) in [(Int64(10), Int64(10)), (0, 49), (0, 600001)] {

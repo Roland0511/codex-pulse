@@ -13,6 +13,34 @@ import Testing
         }
         #expect(condition())
     }
+    @Test func trustedMidTurnConnectionRecoversAndKeepsReadingAcrossAnUnmeasurableResponse() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("pulse-mid-turn-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let id = "11111111-1111-4111-8111-111111111111", turn = "turn"
+        let end = Int64(Date().timeIntervalSince1970 * 1000) - 100
+        func line(_ type: String, _ values: [String: Any]) throws -> Data {
+            var payload: [String: Any] = ["turn_id": turn, "thread_id": id]
+            payload.merge(values) { _, next in next }
+            var data = try JSONSerialization.data(withJSONObject: ["type": type, "timestamp": ISO8601DateFormatter().string(from: Date()), "payload": payload]); data.append(10); return data
+        }
+        let file = root.appendingPathComponent("rollout-mid-turn-" + id + ".jsonl")
+        var bytes = try line("token_usage_record", ["response_id": "boundary", "usage": ["output_tokens": 9999]])
+        bytes.append(try line("event_msg", ["type": "item_completed", "item": ["id": "complete", "type": "Reasoning"], "started_at_ms": end - 1000, "completed_at_ms": end]))
+        bytes.append(try line("token_usage_record", ["response_id": "complete", "usage": ["output_tokens": 82]]))
+        try bytes.write(to: file)
+        let tps = ThroughputStore(root: root), activity = ActivityStore(alive: { _ in true })
+        defer { tps.stop(); activity.stop() }
+        tps.bind(activity); activity.setVerified(true)
+        let owner = try #require(ActivityOwner.read(getpid()))
+        activity.receive(.init(event: .start, session: ActivitySignal.hash(id), turn: ActivitySignal.hash(turn), time: Date().timeIntervalSince1970, owner: owner))
+        try await wait { tps.presentation.sample?.tokensPerSecond == 82 }
+        let sample = tps.presentation.sample
+        let handle = try FileHandle(forWritingTo: file); try handle.seekToEnd()
+        try handle.write(contentsOf: line("token_usage_record", ["response_id": "no-timing", "usage": ["output_tokens": 900]])); try handle.close()
+        try await Task.sleep(for: .milliseconds(1200))
+        #expect(tps.presentation.sample == sample)
+    }
     @Test func trustedSessionSelectionWaitingParallelDisconnectAndPreferences() async throws {
         let suite = "pulse-tps-test-" + UUID().uuidString
         let defaults = try #require(UserDefaults(suiteName: suite))
@@ -56,6 +84,7 @@ import Testing
             return
         }
         activity.receive(signal(.waiting, tool: "permission"))
+        #expect(tps.presentation.sample == measured.sample)
         try await wait { tps.presentation.phase == .waiting && tps.presentation.sample != nil }
         let second = "22222222-2222-4222-8222-222222222222"
         let secondFile = root.appendingPathComponent("rollout-fixture-" + second + ".jsonl")
@@ -64,6 +93,7 @@ import Testing
         try await wait { tps.presentation.sample?.tokensPerSecond == 61 }
         #expect(tps.presentation.sessions == 2 && tps.presentation.contributingSessions == 1 && !tps.presentation.isPartial)
         activity.receive(signal(.afterTool, tool: "permission"))
+        #expect(tps.presentation.sample != nil)
         try await wait { tps.presentation.sample?.tokensPerSecond == 143 }
         #expect(tps.presentation.contributingSessions == 2 && !tps.presentation.isPartial)
         let total = tps.presentation
