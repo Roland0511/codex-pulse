@@ -1,6 +1,17 @@
 # macOS 手动分发
 
-2026-10-22 当前公开分发：[v0.6.1 / build 19](https://github.com/Roland0511/codex-pulse/releases/tag/v0.6.1)。多个活动对话显示总 TPS，详情注明贡献 / 生成中路数、许可等待与部分合计。应用与 DMG 均获 Apple Accepted，公开附件和 Latest 更新清单核验通过，本机已通过内置更新从 0.6.0 升级并重启。历史交付记录保留如下。
+2026-10-23 当前公开分发：[v0.6.2 / build 20](https://github.com/Roland0511/codex-pulse/releases/tag/v0.6.2)。修复 TPS 读数反复消失、长会话中途无法恢复及坏计时影响后续响应的问题。应用与 DMG 均获 Apple Accepted，公开附件和 Latest 更新清单核验通过，发起本次修复的 Mac 已经内置更新器升级。历史交付记录保留如下。
+
+## v0.6.2 / build 20 正式发布（2026-10-23）
+
+- [PR #18](https://github.com/Roland0511/codex-pulse/pull/18) 合并，干净源码 `593b19e1d1eb9d314ebc82674d75ff7e682c3995`；[PR CI](https://github.com/Roland0511/codex-pulse/actions/runs/39914410549) 和 [main push CI](https://github.com/Roland0511/codex-pulse/actions/runs/39914822410) 均成功。签名 tag `v0.6.2` 对应此源码，后续交付文档不改变发布二进制。
+- 原发布机通过统一 `scripts/release.py` 完成 Universal 双架构、Developer ID 签名、应用及 DMG 两次 Apple Accepted、公证票据、Gatekeeper、Sparkle ZIP / feed 签名及签名 tag 核验。正式四附件匿名下载与 Latest 清单逐字节校验通过，`complete=true`。
+- DMG SHA-256：`dd7b63b6bcee9167cbc66df9af4eeb793dec96d69bc5776848e07690f8f07642`。
+- ZIP SHA-256：`691d14ce8bd6b9dba3910397a66fc97c215c11ef3be679695ec446f320769c10`。
+- 安装前在目标 Mac 再次匿名下载公开 ZIP / 清单 / 校验值，核对版本、tag 源码、Latest、内置可信公钥对应的 ZIP Ed25519 签名，以及解压应用的双架构、严格签名、公证票据和 Gatekeeper。旧 0.6.1 应用与偏好已备份。
+- 通过 Sparkle「安装更新 → 安装并重启应用」升级正式路径；确认 0.6.2 / build 20、单实例、主程序 / helper / Info.plist 与公开包一致，再次检查提示已是最新版。hooks 与已安装 helper 摘要保持，布局、精度、语言、外观、快捷键及更新开关保持。偏好差异只涉及 Sparkle 检查时间 / 窗口位置和正常额度刷新带来的提醒去重读数。
+- 升级前观察到 0 / 3 路有效样本；升级后在继续工作的长对话中观察到有效总 TPS 与 3 / 4 路部分合计，随后还观察到 2 / 4 路部分合计；设置显示连接就绪。此为真实升级及采样恢复证据，不扩大为全部会话均已取得样本、瞬时流式 TPS、Intel 实机、多屏或休眠验收。原发布机的安装应用保持 0.6.1，未同时升级。
+
 
 ## v0.6.1 / build 19 正式发布（2026-10-22）
 

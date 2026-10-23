@@ -1,6 +1,6 @@
 # 应用更新
 
-2026-10-16 当前正式版本为 [v0.5.0 / build 14](https://github.com/Roland0511/codex-pulse/releases/tag/v0.5.0)。签名 Latest 清单与公开 ZIP 一致；本机由匿名下载并核验的公开 ZIP 更新，应用内检查确认 0.5.0 已是最新版，自动检查 / 自动安装选择保持。此次为手动覆盖安装验收，历史 Sparkle 自动安装链路见下方记录。更新器自 v0.2.0 / build 6 引入，采用固定 Sparkle 2.10.0。
+2026-10-23 当前正式版本为 [v0.6.2 / build 20](https://github.com/Roland0511/codex-pulse/releases/tag/v0.6.2)。签名 Latest 清单和四个公开附件已核验；目标 Mac 经内置 Sparkle 完成 0.6.1 → 0.6.2 下载、安装和重启，随后检查确认已是最新版。安装文件与公开 ZIP 一致，原有业务偏好及 hooks 保持。详细证据见 [分发记录](DISTRIBUTION.md) 与 [验证记录](VERIFICATION.md)。更新器自 v0.2.0 / build 6 引入，采用固定 Sparkle 2.10.0。
 
 ## 使用方式
 
