@@ -18,8 +18,10 @@ import Security
     public var definition: [String: Any] {
         ["description": "Codex Pulse read-only work status. No chat history, session output, or session control.",
          "hooks": Dictionary(uniqueKeysWithValues: ActivityEvent.allCases.map { event in
-            (event.rawValue, [["hooks": [["type": "command", "command": Self.shellQuote(helper.path) + " --event " + event.rawValue,
-                                         "async": true, "timeout": 2]]]])
+            var handler: [String: Any] = ["type": "command", "command": Self.shellQuote(helper.path) + " --event " + event.rawValue,
+                                          "timeout": 2]
+            if event != .sessionEnd { handler["async"] = true }
+            return (event.rawValue, [["hooks": [handler]]])
          })]
     }
     public var reviewText: String {
@@ -28,6 +30,11 @@ import Security
     }
     private func owned(_ handler: [String: Any]) -> Bool {
         handler["type"] as? String == "command" && (handler["command"] as? String).map(commands.contains) == true
+    }
+    private func validAsync(_ value: Any?, event: String) -> Bool {
+        if event == ActivityEvent.sessionEnd.rawValue, value == nil { return true }
+        guard let value = value as? NSNumber, CFGetTypeID(value) == CFBooleanGetTypeID() else { return false }
+        return value.boolValue == (event != ActivityEvent.sessionEnd.rawValue)
     }
     private func root(_ data: Data?) throws -> [String: Any] {
         guard let data else { return ["description": definition["description"]!] }
@@ -66,7 +73,7 @@ import Security
                     let command = handler["command"] as! String
                     guard command == Self.shellQuote(helper.path) + " --event " + event,
                           found.insert(command).inserted, group["matcher"] == nil,
-                          let async = handler["async"] as? NSNumber, CFGetTypeID(async) == CFBooleanGetTypeID(), async.boolValue,
+                          validAsync(handler["async"], event: event),
                           let timeout = handler["timeout"] as? NSNumber, CFGetTypeID(timeout) != CFBooleanGetTypeID(), timeout.doubleValue == 2 else { return false }
                 }
             }
@@ -93,6 +100,51 @@ import Security
         defer { try? file.close(); unlink(temporary.path) }
         try file.write(contentsOf: data)
         guard fsync(fd) == 0, rename(temporary.path, url.path) == 0 else { throw CocoaError(.fileWriteUnknown) }
+    }
+    /// Repair only our installed legacy option. Never install a helper, change other handlers,
+    /// or manufacture trust for the changed definition. A missing configuration stays absent.
+    @discardableResult public func repairLegacySessionEnd() throws -> Bool {
+        func repaired(_ root: [String: Any]) throws -> [String: Any] {
+            guard root["hooks"] == nil || root["hooks"] is [String: Any] else { throw CocoaError(.fileReadCorruptFile) }
+            var next = root, hooks = root["hooks"] as? [String: Any] ?? [:]
+            guard let value = hooks[ActivityEvent.sessionEnd.rawValue] else { return root }
+            guard var groups = value as? [[String: Any]] else { throw CocoaError(.fileReadCorruptFile) }
+            var changed = false
+            for index in groups.indices {
+                guard var handlers = groups[index]["hooks"] as? [[String: Any]] else { throw CocoaError(.fileReadCorruptFile) }
+                for position in handlers.indices {
+                    let handler = handlers[position]
+                    if owned(handler), handler["command"] as? String == Self.shellQuote(helper.path) + " --event SessionEnd",
+                       let async = handler["async"] as? NSNumber, CFGetTypeID(async) == CFBooleanGetTypeID(), async.boolValue {
+                        handlers[position].removeValue(forKey: "async"); changed = true
+                    }
+                }
+                groups[index]["hooks"] = handlers
+            }
+            guard changed else { return root }
+            hooks[ActivityEvent.sessionEnd.rawValue] = groups; next["hooks"] = hooks
+            return next
+        }
+        guard let initial = try readCurrent() else { return false }
+        let original = try root(initial), preview = try repaired(original)
+        guard !NSDictionary(dictionary: preview).isEqual(to: original) else { return false }
+        let fd = open(hooksURL.deletingLastPathComponent().appendingPathComponent(".pulse-hooks.lock").path,
+                      O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0o600)
+        guard fd >= 0 else { throw CocoaError(.fileWriteNoPermission) }
+        defer { Darwin.close(fd) }
+        var info = stat()
+        guard fstat(fd, &info) == 0, info.st_uid == getuid(), info.st_mode & S_IFMT == S_IFREG else { throw CocoaError(.fileWriteNoPermission) }
+        guard flock(fd, LOCK_EX | LOCK_NB) == 0 else { throw CocoaError(.fileLocking) }
+        guard let before = try readCurrent() else { return false }
+        let current = try root(before), next = try repaired(current)
+        guard !NSDictionary(dictionary: next).isEqual(to: current) else { return false }
+        try ActivitySocket.privateDirectory(support)
+        let backups = support.appendingPathComponent("hook-backups")
+        try ActivitySocket.privateDirectory(backups)
+        try write(before, to: backups.appendingPathComponent("session-end-migration-" + UUID().uuidString + ".json"))
+        guard try readCurrent() == before else { throw CocoaError(.fileWriteUnknown) }
+        try write(JSONSerialization.data(withJSONObject: next, options: [.prettyPrinted, .sortedKeys]), to: hooksURL)
+        return true
     }
     public func change(install: Bool) throws {
         try ActivitySocket.privateDirectory(support)

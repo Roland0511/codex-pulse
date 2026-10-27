@@ -20,7 +20,7 @@
 - helper 从 stdin 流式跳过非白名单 JSON 值，不解码 / 保存提示词、工具参数、工具结果或回复，不打开 `transcript_path`。
 - 白名单仅包含 `hook_event_name`、`session_id`、`turn_id`、`agent_id`、`tool_use_id`、`tool_name`；标识和工具类别立即 SHA-256 哈希。跨进程仅发送事件、哈希、时间及 Codex 祖先进程的 PID / 启动时间，不发送工具名称、参数或结果。
 - 状态通过当前用户的本机 Unix datagram socket 传递；目录 0700、socket 0600。无 TCP 监听，无认证令牌或 Cookie，无账户修改。
-- 不输出 stdout / stderr，不返回许可决定、上下文、继续 / 中断请求。helper 失败或 Pulse 退出时仍退出 0；命令配置为后台执行，超时 2 秒。官方运行时对 `SessionEnd` 强制同步执行，其余事件按后台方式运行。
+- 不输出 stdout / stderr，不返回许可决定、上下文、继续 / 中断请求。helper 失败或 Pulse 退出时仍退出 0；超时 2 秒。`SessionEnd` 不写入 `async`（同步执行），其余事件写入 `async: true`。
 - 所有状态仅留内存，不持久化事件、原始标识、聊天或队列。`--check` 仅用于显式合成输入验证，不出现在安装定义中。
 
 显式设置 `PULSE_DIAGNOSTICS_FILE` 时，验收进程可写出进程 / 请求计数、工作布尔值、是否收到信号以及最近 64 条事件类型、数量及关联布尔值，用于核对实际生命周期；没有会话或工具标识、哈希、工具名称、额度、身份或正文。产品默认不输出诊断，本机验收文件留在 Git 忽略的 `private-evidence/`。
@@ -77,7 +77,7 @@ python3 scripts/build_app.py
 python3 scripts/activity_hooks.py prepare
 ```
 
-`dist/activity-hooks.json` 只列本项目新增的 12 个事件定义：每条都调用本机 `~/Library/Application Support/CodexPulse/PulseActivityHook --event EVENT`，配置 async / 超时 2 秒；`SessionEnd` 的实际同步行为以上述官方约定为准。prepare 不修改 Codex 配置。helper 已包含在 `.app` 内并单独 ad-hoc 签名。
+`dist/activity-hooks.json` 只列本项目新增的 12 个事件定义：每条都调用本机 `~/Library/Application Support/CodexPulse/PulseActivityHook --event EVENT`，超时 2 秒，除 `SessionEnd` 外配置 `async: true`。prepare 不修改 Codex 配置。helper 已包含在 `.app` 内并单独 ad-hoc 签名。
 
 用户审阅后安装：
 
@@ -113,3 +113,9 @@ python3 scripts/activity_hooks.py remove
 显式合成预览：`python3 scripts/build_demo.py working --speed fast --dock codex-left`；速度可选 standard / fast / ultrafast，`working-low` 提供 7% 短填充。参数只影响演示包，不改变真实配置或工作信号。`--demo-reduce-motion` 仅用于合成验证静态退化，不改系统设置。
 
 程序化电弧由四层分形中点位移生成，连续路径插值及前沿 / 尾迹传播均交给 Core Animation；没有逐帧 SwiftUI 状态更新。合成验证可追加 `--appearance light|dark|codex` 和 `--reduce-motion`，只覆盖 Demo，正式偏好与系统动态效果设置不变。实际验证范围见 VERIFICATION.md。
+
+### 旧版 SessionEnd 配置自动迁移
+
+启动检查连接和后续连接检查会识别当前 helper 精确命令的 `SessionEnd` handler，删除旧版错误写入的布尔 `async: true`。迁移先在 `CodexPulse/hook-backups/session-end-migration-*.json` 保存原文件，再持有安装器同一配置锁核对并原子写入；重复检查不写文件、不重复备份。组内其它 handler、matcher、自定义字段和第三方钩子保留。未安装用户不会创建配置或 helper，迁移也不会重新安装缺失的 helper。重复键、符号链接和无法安全读取的配置拒绝覆盖。
+
+迁移不修改 Codex 的信任记录；修复后重新读取官方信任状态，仅在当前定义已获信任时启用工作状态。若 Codex 将变更判为 modified，沿用「等待审阅信任」提示，由用户在 Codex 审阅。Python 准备脚本和原生安装器生成同样的同步 `SessionEnd` 定义。

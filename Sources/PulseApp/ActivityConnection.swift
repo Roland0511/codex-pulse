@@ -30,7 +30,12 @@ import PulseCore
     func refresh(automatic: Bool = false) {
         guard let store, !store.demo, !checking else { return }
         if automatic && Date().timeIntervalSince(lastCheck) < 30 { return }
-        do { installed = try installer.isInstalled() }
+        do {
+            if try installer.repairLegacySessionEnd() {
+                verified = false; store.activity.setVerified(false); store.speedMetadata.setEnabled(false)
+            }
+            installed = try installer.isInstalled()
+        }
         catch { statusKey = "activity.unsafe"; verified = false; store.activity.setVerified(false); store.speedMetadata.setEnabled(false); return }
         guard installed else { statusKey = "activity.disabled"; verified = false; store.activity.setVerified(false); store.speedMetadata.setEnabled(false); return }
         checking = true; lastCheck = Date()

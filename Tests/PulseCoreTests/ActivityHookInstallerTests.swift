@@ -86,6 +86,70 @@ import Testing
         try FileManager.default.removeItem(at: installer.helper)
         #expect(try !installer.isInstalled())
     }
+    @Test func sessionEndIsSynchronousAndOldDefinitionNeedsRepair() throws {
+        let (installer, root) = try fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try installer.change(install: true)
+        var definition = installer.definition
+        var hooks = definition["hooks"] as! [String: [[String: Any]]]
+        var groups = hooks["SessionEnd"]!
+        var handlers = groups[0]["hooks"] as! [[String: Any]]
+        #expect(handlers[0]["async"] == nil)
+        handlers[0]["async"] = true
+        groups[0]["hooks"] = handlers; hooks["SessionEnd"] = groups; definition["hooks"] = hooks
+        try write(definition, to: installer.hooksURL)
+        #expect(try !installer.isInstalled())
+        try installer.change(install: true)
+        #expect(try installer.isInstalled())
+        handlers[0]["async"] = false
+        groups[0]["hooks"] = handlers; hooks["SessionEnd"] = groups; definition["hooks"] = hooks
+        try write(definition, to: installer.hooksURL)
+        #expect(try installer.isInstalled())
+    }
+    @Test func migrationPreservesMixedGroupAndDoesNotInstallOrRepeat() throws {
+        let (installer, root) = try fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let command = ActivityHookInstaller.shellQuote(installer.helper.path) + " --event SessionEnd"
+        let old: [String: Any] = ["extra": ["keep": true], "hooks": [
+            "SessionEnd": [["matcher": "other", "extra": 8, "hooks": [
+                ["type": "command", "command": command, "async": true, "timeout": 2, "keep": "custom"],
+                ["type": "command", "command": "foreign", "async": true]]]],
+            "Stop": [["hooks": [["type": "command", "command": command, "async": true]]]]]]
+        try write(old, to: installer.hooksURL)
+        let before = try Data(contentsOf: installer.hooksURL)
+        #expect(try installer.repairLegacySessionEnd())
+        var expected = old, hooks = old["hooks"] as! [String: [[String: Any]]]
+        var groups = hooks["SessionEnd"]!, handlers = groups[0]["hooks"] as! [[String: Any]]
+        handlers[0].removeValue(forKey: "async"); groups[0]["hooks"] = handlers; hooks["SessionEnd"] = groups; expected["hooks"] = hooks
+        let after = try Data(contentsOf: installer.hooksURL)
+        #expect(NSDictionary(dictionary: try JSONSerialization.jsonObject(with: after) as! [String: Any]).isEqual(to: expected))
+        #expect(!FileManager.default.fileExists(atPath: installer.helper.path))
+        let backups = try FileManager.default.contentsOfDirectory(at: installer.support.appendingPathComponent("hook-backups"), includingPropertiesForKeys: nil)
+        #expect(backups.count == 1)
+        #expect(try Data(contentsOf: backups[0]) == before)
+        #expect(try !installer.repairLegacySessionEnd())
+        #expect(try Data(contentsOf: installer.hooksURL) == after)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: installer.support.appendingPathComponent("hook-backups").path).count == 1)
+    }
+    @Test func migrationDoesNotTouchAbsentForeignOrUnsafeConfiguration() throws {
+        let (installer, root) = try fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        #expect(try !installer.repairLegacySessionEnd())
+        #expect(!FileManager.default.fileExists(atPath: installer.hooksURL.deletingLastPathComponent().path))
+        try write(["hooks": ["SessionEnd": [["hooks": [["type": "command", "command": "foreign", "async": true]]]]]], to: installer.hooksURL)
+        let foreign = try Data(contentsOf: installer.hooksURL)
+        #expect(try !installer.repairLegacySessionEnd())
+        #expect(try Data(contentsOf: installer.hooksURL) == foreign)
+        let target = root.appendingPathComponent("foreign.json")
+        try FileManager.default.moveItem(at: installer.hooksURL, to: target)
+        try FileManager.default.createSymbolicLink(at: installer.hooksURL, withDestinationURL: target)
+        #expect(throws: (any Error).self) { try installer.repairLegacySessionEnd() }
+        #expect(try Data(contentsOf: target) == foreign)
+        try FileManager.default.removeItem(at: installer.hooksURL)
+        try Data(#"{"hooks":{},"hooks":{}}"#.utf8).write(to: installer.hooksURL)
+        #expect(throws: (any Error).self) { try installer.repairLegacySessionEnd() }
+        #expect(!FileManager.default.fileExists(atPath: installer.support.path))
+    }
 }
 
 @Suite("只读信任状态") struct HookTrustTests {

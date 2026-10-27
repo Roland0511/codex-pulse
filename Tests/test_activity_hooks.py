@@ -10,6 +10,19 @@ spec.loader.exec_module(module)
 
 
 class ActivityHookInstallTests(unittest.TestCase):
+    def test_session_end_reinstall_removes_legacy_async_and_preserves_foreign_handler(self):
+        helper = Path("/synthetic/path with space/PulseActivityHook")
+        legacy = module.definition(helper)
+        legacy["hooks"]["SessionEnd"][0]["hooks"][0]["async"] = True
+        foreign = {"type": "command", "command": "foreign", "async": True}
+        legacy["hooks"]["SessionEnd"][0]["hooks"].append(foreign)
+        repaired = module.merged(legacy, helper, True)
+        handlers = [handler for group in repaired["hooks"]["SessionEnd"] for handler in group["hooks"]]
+        self.assertIn(foreign, handlers)
+        pulse = next(handler for handler in handlers if module.owned(handler, helper))
+        self.assertNotIn("async", pulse)
+        self.assertTrue(module.definition(helper)["hooks"]["Stop"][0]["hooks"][0]["async"])
+
     def test_preserves_foreign_groups_and_is_idempotent_and_removable(self):
         helper = Path("/synthetic/path with space/PulseActivityHook")
         original = {"description": "existing", "extra": True, "hooks": {

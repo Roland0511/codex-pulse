@@ -27,7 +27,7 @@ def private_directory(path):
 def definition(helper):
     return {"description": DESCRIPTION, "hooks": {
         event: [{"hooks": [{"type": "command", "command": f"{shlex.quote(str(helper))} --event {event}",
-                           "async": True, "timeout": 2}]}] for event in EVENTS}}
+                           **({"async": True} if event != "SessionEnd" else {}), "timeout": 2}]}] for event in EVENTS}}
 
 
 def owned(handler, helper):
