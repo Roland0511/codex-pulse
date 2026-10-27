@@ -661,3 +661,9 @@ DMG 外层追加核验中，沙箱内 codesign / stapler 曾返回签名或读�
 - 新增回归覆盖旧版 async=true 迁移、新定义同步运行、显式 async=false 的安装识别、混合组和自定义字段保留、备份原字节、重复运行不改写、缺失配置 / helper 不安装、符号链接和重复键拒绝覆盖。应用启动检查会自动调用迁移。
 - 本机使用同一 Swift 迁移方法实际修复 1 处旧选项，除该字段外语义内容完整保留，文件权限 0600；第二次调用返回 false。随后官方信任检查通过。此证据不代替 Codex 设置截图或主动终止会话的交互验收。
 - 发布前已核对现有 Developer ID、Apple notary profile 和 Sparkle 公钥可用。正式构建、公证、CI、公开下载与 Latest 清单状态以完成后的发布记录为准。
+
+### 0.6.3 正式发布追加
+
+钩子修复提交 `876226edf42bc279178e2fe6337ba7535122230f` 已推送 main，精确对应的 push CI 40541272492 成功。统一发布器从该干净源码重复通过完整回归，完成 Universal 构建、Developer ID 签名、应用和 DMG 两次 Apple Accepted、票据 / Gatekeeper、Sparkle ZIP / feed 签名、四个公开附件匿名字节校验及 Latest 清单核验，publish-state.json 记录 complete=true。公开版本为 v0.6.3 / build 21，发布内容仅为钩子修复。
+
+本机正式安装仍为 0.6.2 / build 20，二进制摘要未变。本轮没有新增截图或真实桌面交互验收，没有启动推理探测；远程 TPS 草稿保持未提交，未随此版本发布。构建 / 公证 / 下载验证状态保存在被 Git 忽略的 dist/releases/v0.6.3-build21/。

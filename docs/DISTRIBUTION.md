@@ -298,3 +298,11 @@ python3 -m venv .build/packaging
 ## 2026-10-22 本机 TPS 体验版安装
 
 用户明确授权替换并启动。将已完成回归的 TPS / 精度功能以 0.5.3 / build 17 本地构建，沿用原安装的 Developer ID 身份签名，正常退出旧版后安装至 `/Applications/Codex Pulse.app` 并启动。深层严格签名、候选与安装文件一致性、安装路径单实例核对通过；未公证或发布新公开版本。旧 0.5.2 应用与偏好保留于忽略目录 `local-data/tps-install-20261022-013253/`，支持回退。详细验收边界见 `VERIFICATION.md`。
+
+## v0.6.3 / build 21 正式发布（2026-10-28）
+
+- 发布地址：[v0.6.3](https://github.com/Roland0511/codex-pulse/releases/tag/v0.6.3)。仅包含 SessionEnd 同步定义和旧版钩子自动备份迁移。
+- 构建源码 `876226edf42bc279178e2fe6337ba7535122230f`，干净隔离构建；main push [Checks 40541272492](https://github.com/Roland0511/codex-pulse/actions/runs/40541272492) 成功。Swift 179 项通过，Python 33 项完成（5 项可选用例跳过）。
+- 统一发布器完成 Universal arm64 / x86_64、Developer ID 签名、应用与 DMG Apple Accepted、票据 / Gatekeeper / Sparkle 验证、签名 tag、草稿附件校验、公开四附件匿名下载及 Latest 清单核验；publish-state.json 的 complete=true。
+- DMG SHA-256：`2fbc2a41f1f294cf06d03996a6e9ccfdf0c9a0b41b04bc0a51865094be7f6097`。ZIP SHA-256：`c99b31e89cc10596a8255fa63fe5e077b5f58371c5adafacb68454b411df8dc2`。
+- 本次执行发布，不替换本机正式安装；原 0.6.2 / build 20 的二进制摘要前后一致。远程 TPS 草稿未纳入提交或发行。
